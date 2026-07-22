@@ -12,7 +12,11 @@ export const colors = {
   background: '#FFFFFF',
   surface: '#F3F4F6',
   accent: '#2563EB',
+  // Reservado para Fase 2 (confirmação de exclusão de post/professor/aluno) — ver 01-UI-SPEC.md.
   destructive: '#DC2626',
+  textPrimary: '#111827',
+  textSecondary: '#374151',
+  textMuted: '#6B7280',
 };
 
 // lineHeight já convertido para pixel absoluto (fontSize × ratio da 01-UI-SPEC.md),
@@ -21,5 +25,6 @@ export const typography = {
   body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
   label: { fontSize: 13, fontWeight: '400', lineHeight: 18.2 },
   heading: { fontSize: 20, fontWeight: '600', lineHeight: 25 },
+  // Reservado para título de tela (Fase 1 UI-SPEC define uso, telas atuais usam heading).
   display: { fontSize: 24, fontWeight: '600', lineHeight: 28.8 },
 };

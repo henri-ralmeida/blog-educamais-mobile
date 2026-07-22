@@ -3,18 +3,18 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../theme/tokens';
 
-export default function SearchBar({ value, onChangeText, placeholder = 'Buscar por título ou autor...' }) {
+export default function SearchBar({ value, onChangeText, placeholder = 'Buscar por título ou conteúdo...' }) {
   const [focused, setFocused] = useState(false);
 
   return (
     <View style={[styles.container, focused && styles.containerFocused]}>
-      <Ionicons name="search" size={20} color="#6B7280" style={styles.icon} />
+      <Ionicons name="search" size={20} color={colors.textMuted} style={styles.icon} />
       <TextInput
         style={styles.input}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.textMuted}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
       />
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     ...typography.body,
-    color: '#111827',
+    color: colors.textPrimary,
     paddingVertical: spacing.sm,
   },
 });

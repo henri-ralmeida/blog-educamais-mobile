@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, spacing, typography } from '../theme/tokens';
 
 const DESCRIPTION_LIMIT = 150;
@@ -40,12 +40,12 @@ const styles = StyleSheet.create({
   },
   author: {
     ...typography.label,
-    color: '#6B7280',
+    color: colors.textMuted,
     marginTop: spacing.xs,
   },
   description: {
     ...typography.body,
-    color: '#374151',
+    color: colors.textSecondary,
     marginTop: spacing.sm,
   },
 });

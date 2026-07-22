@@ -5,7 +5,7 @@ import { colors, spacing, typography } from '../theme/tokens';
 export default function EmptyState({ heading, body, icon }) {
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={48} color="#6B7280" style={styles.icon} />
+      <Ionicons name={icon} size={48} color={colors.textMuted} style={styles.icon} />
       <Text style={styles.heading}>{heading}</Text>
       <Text style={styles.body}>{body}</Text>
     </View>
@@ -23,13 +23,13 @@ const styles = StyleSheet.create({
   },
   heading: {
     ...typography.heading,
-    color: '#111827',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   body: {
     ...typography.body,
-    color: '#6B7280',
+    color: colors.textMuted,
     textAlign: 'center',
   },
 });

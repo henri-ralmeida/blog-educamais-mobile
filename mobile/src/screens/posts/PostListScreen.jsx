@@ -35,17 +35,39 @@ export default function PostListScreen({ navigation }) {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
+  // cancelled/manualFetchToken evitam setState em componente desmontado e descartam
+  // respostas obsoletas de uma busca anterior mais lenta.
   useEffect(() => {
-    fetchPosts(debouncedTerm);
+    let cancelled = false;
+    postsService
+      .search(debouncedTerm)
+      .then((data) => {
+        if (cancelled) return;
+        setAllPosts(data);
+        setVisibleCount(PAGE_SIZE);
+        setHasError(false);
+      })
+      .catch(() => {
+        if (!cancelled) setHasError(true);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [debouncedTerm]);
 
   function fetchPosts(term) {
+    setHasError(false);
     return postsService
       .search(term)
       .then((data) => {
         setAllPosts(data);
         setVisibleCount(PAGE_SIZE);
-        setHasError(false);
       })
       .catch(() => {
         setHasError(true);
@@ -100,7 +122,7 @@ export default function PostListScreen({ navigation }) {
       style={styles.container}
       contentContainerStyle={styles.listContent}
       data={visiblePosts}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => String(item.id)}
       ListHeaderComponent={
         <View style={styles.searchBarWrapper}>
           <SearchBar value={searchTerm} onChangeText={setSearchTerm} />
@@ -159,7 +181,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.body,
-    color: '#111827',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
