@@ -1,8 +1,13 @@
 import { Pressable, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import AdminHomeScreen from '../screens/admin/AdminHomeScreen';
 import PostAdminListScreen from '../screens/posts/PostAdminListScreen';
 import PostFormScreen from '../screens/posts/PostFormScreen';
+import ProfessorListScreen from '../screens/professores/ProfessorListScreen';
+import ProfessorFormScreen from '../screens/professores/ProfessorFormScreen';
+import AlunoListScreen from '../screens/alunos/AlunoListScreen';
+import AlunoFormScreen from '../screens/alunos/AlunoFormScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '../theme/tokens';
 
@@ -27,15 +32,38 @@ function CreatePostButton({ navigation }) {
   );
 }
 
+function CreateProfessorButton({ navigation }) {
+  return (
+    <Pressable onPress={() => navigation.navigate('ProfessorForm')}>
+      <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
+    </Pressable>
+  );
+}
+
+function CreateAlunoButton({ navigation }) {
+  return (
+    <Pressable onPress={() => navigation.navigate('AlunoForm')}>
+      <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
+    </Pressable>
+  );
+}
+
 export default function AdminStack() {
   return (
     <Stack.Navigator>
+      <Stack.Screen
+        name="AdminHome"
+        component={AdminHomeScreen}
+        options={{
+          title: 'Administração',
+          headerLeft: () => <LogoutButton />,
+        }}
+      />
       <Stack.Screen
         name="PostAdminList"
         component={PostAdminListScreen}
         options={({ navigation }) => ({
           title: 'Administração de posts',
-          headerLeft: () => <LogoutButton />,
           headerRight: () => <CreatePostButton navigation={navigation} />,
         })}
       />
@@ -44,6 +72,36 @@ export default function AdminStack() {
         component={PostFormScreen}
         options={({ route }) => ({
           title: route.params?.id !== undefined && route.params?.id !== null ? 'Editar post' : 'Novo post',
+        })}
+      />
+      <Stack.Screen
+        name="ProfessorList"
+        component={ProfessorListScreen}
+        options={({ navigation }) => ({
+          title: 'Professores',
+          headerRight: () => <CreateProfessorButton navigation={navigation} />,
+        })}
+      />
+      <Stack.Screen
+        name="ProfessorForm"
+        component={ProfessorFormScreen}
+        options={({ route }) => ({
+          title: route.params?.id !== undefined && route.params?.id !== null ? 'Editar professor' : 'Novo professor',
+        })}
+      />
+      <Stack.Screen
+        name="AlunoList"
+        component={AlunoListScreen}
+        options={({ navigation }) => ({
+          title: 'Alunos',
+          headerRight: () => <CreateAlunoButton navigation={navigation} />,
+        })}
+      />
+      <Stack.Screen
+        name="AlunoForm"
+        component={AlunoFormScreen}
+        options={({ route }) => ({
+          title: route.params?.id !== undefined && route.params?.id !== null ? 'Editar aluno' : 'Novo aluno',
         })}
       />
     </Stack.Navigator>
