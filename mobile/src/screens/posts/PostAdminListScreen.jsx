@@ -71,7 +71,9 @@ export default function PostAdminListScreen({ navigation }) {
         // 404: o post já não existe, que era o objetivo — sucesso silencioso.
         if (err?.response?.status === 404) {
           setPosts((current) => current.filter((p) => p.id !== post.id));
+          return;
         }
+        Alert.alert('Erro', 'Não foi possível excluir o post. Tente novamente.');
       });
   }
 

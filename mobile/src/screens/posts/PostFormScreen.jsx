@@ -8,10 +8,11 @@ import { colors, spacing, typography } from '../../theme/tokens';
 // Reutilizável para criação E edição: route.params?.id presente = modo edição.
 export default function PostFormScreen({ route, navigation }) {
   const id = route.params?.id;
-  const isEditMode = !!id;
+  const isEditMode = id !== undefined && id !== null;
   const { user } = useAuth();
 
   const [loadingPost, setLoadingPost] = useState(isEditMode);
+  const [loadError, setLoadError] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
   const {
@@ -31,6 +32,9 @@ export default function PostFormScreen({ route, navigation }) {
         if (cancelled) return;
         reset({ title: data.title ?? '', content: data.content ?? '' });
       })
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      })
       .finally(() => {
         if (!cancelled) setLoadingPost(false);
       });
@@ -48,8 +52,13 @@ export default function PostFormScreen({ route, navigation }) {
       .then(() => {
         navigation.goBack();
       })
-      .catch(() => {
-        setSubmitError('Não foi possível salvar o post. Verifique sua conexão e tente novamente.');
+      .catch((err) => {
+        const status = err?.response?.status;
+        if (status >= 400 && status < 500) {
+          setSubmitError('Dados inválidos. Verifique os campos e tente novamente.');
+        } else {
+          setSubmitError('Não foi possível salvar o post. Verifique sua conexão e tente novamente.');
+        }
       });
   }
 
@@ -57,6 +66,14 @@ export default function PostFormScreen({ route, navigation }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>Não foi possível carregar o post. Verifique sua conexão e tente novamente.</Text>
       </View>
     );
   }

@@ -45,6 +45,10 @@ export function AuthProvider({ children }) {
           restoredSession = null;
         }
       })
+      .catch(() => {
+        // Falha ao ler AsyncStorage no boot nunca deve travar o app — trata como sessão ausente.
+        restoredSession = null;
+      })
       .finally(() => {
         if (!cancelled) dispatch({ type: 'RESTORE', session: restoredSession });
       });
@@ -54,17 +58,28 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Estado em memória (sessionStore/dispatch) é sempre a fonte de verdade da UI —
+  // persistência em AsyncStorage é best-effort e nunca deve deixar isAuthenticated
+  // dessincronizado de sessionStore se a escrita falhar.
   async function login(name) {
     const session = { role: 'teacher', name: name.trim() };
     setSession(session);
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
     dispatch({ type: 'LOGIN', session });
+    try {
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch {
+      // Sessão já está ativa em memória; falha ao persistir só afeta reabertura do app.
+    }
   }
 
   async function logout() {
     clearSession();
-    await AsyncStorage.removeItem(SESSION_KEY);
     dispatch({ type: 'LOGOUT' });
+    try {
+      await AsyncStorage.removeItem(SESSION_KEY);
+    } catch {
+      // Falha ao persistir o logout não deve manter a UI em estado autenticado.
+    }
   }
 
   return (
@@ -75,5 +90,9 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  if (ctx === null) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return ctx;
 }

@@ -43,7 +43,7 @@ export default function AdminStack() {
         name="PostForm"
         component={PostFormScreen}
         options={({ route }) => ({
-          title: route.params?.id ? 'Editar post' : 'Novo post',
+          title: route.params?.id !== undefined && route.params?.id !== null ? 'Editar post' : 'Novo post',
         })}
       />
     </Stack.Navigator>
