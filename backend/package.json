@@ -1,0 +1,36 @@
+{
+  "name": "blogeducamais-techchallenge-fase02",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/igorcarvalhodevs/blogeducamais-techchallenge-fase02.git"
+  },
+  "keywords": [],
+  "author": "IgorCarvalho.devs",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/igorcarvalhodevs/blogeducamais-techchallenge-fase02/issues"
+  },
+  "homepage": "https://github.com/igorcarvalhodevs/blogeducamais-techchallenge-fase02#readme",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "prisma": "^5.22.0"
+  }
+}
