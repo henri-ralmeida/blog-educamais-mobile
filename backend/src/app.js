@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const postRoutes = require('./modules/posts/post.routes');
 const professorRoutes = require('./modules/professores/professor.routes');
+const alunoRoutes = require('./modules/alunos/aluno.routes');
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use('/posts', postRoutes);
 app.use('/professores', professorRoutes);
+app.use('/alunos', alunoRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
