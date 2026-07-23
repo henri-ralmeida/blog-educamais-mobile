@@ -12,4 +12,8 @@ export const postsService = {
   },
 
   getById: (id) => client.get(`/posts/${id}`).then((res) => res.data),
+
+  // DELETE /posts/:id retorna 204 sem corpo em sucesso — res.data será undefined,
+  // o que é esperado e não deve ser tratado como erro (confirmado em post.routes.js).
+  remove: (id) => client.delete(`/posts/${id}`).then((res) => res.data),
 };

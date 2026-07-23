@@ -1,15 +1,18 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import PublicStack from './src/navigation/PublicStack';
+import RootNavigator from './src/navigation/RootNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { AuthProvider } from './src/contexts/AuthContext';
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <NavigationContainer>
-        <PublicStack />
-        <StatusBar style="auto" />
-      </NavigationContainer>
+      <AuthProvider>
+        <NavigationContainer>
+          <RootNavigator />
+          <StatusBar style="auto" />
+        </NavigationContainer>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
