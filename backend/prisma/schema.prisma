@@ -16,3 +16,12 @@ model Post {
   updatedAt DateTime @updatedAt
 }
 
+model Professor {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
