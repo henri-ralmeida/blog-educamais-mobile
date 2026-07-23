@@ -1,6 +1,8 @@
 import { Pressable, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import PostAdminListScreen from '../screens/posts/PostAdminListScreen';
+import PostFormScreen from '../screens/posts/PostFormScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '../theme/tokens';
 
@@ -17,16 +19,32 @@ function LogoutButton() {
   );
 }
 
+function CreatePostButton({ navigation }) {
+  return (
+    <Pressable onPress={() => navigation.navigate('PostForm')}>
+      <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
+    </Pressable>
+  );
+}
+
 export default function AdminStack() {
   return (
     <Stack.Navigator>
       <Stack.Screen
         name="PostAdminList"
         component={PostAdminListScreen}
-        options={{
+        options={({ navigation }) => ({
           title: 'Administração de posts',
           headerLeft: () => <LogoutButton />,
-        }}
+          headerRight: () => <CreatePostButton navigation={navigation} />,
+        })}
+      />
+      <Stack.Screen
+        name="PostForm"
+        component={PostFormScreen}
+        options={({ route }) => ({
+          title: route.params?.id ? 'Editar post' : 'Novo post',
+        })}
       />
     </Stack.Navigator>
   );

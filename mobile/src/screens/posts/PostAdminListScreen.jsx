@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import EmptyState from '../../components/EmptyState';
 import { postsService } from '../../services/postsService';
 import { colors, spacing, typography } from '../../theme/tokens';
 
-export default function PostAdminListScreen() {
+export default function PostAdminListScreen({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -31,6 +31,21 @@ export default function PostAdminListScreen() {
       cancelled = true;
     };
   }, [retryKey]);
+
+  // Recarrega a lista sempre que a tela ganha foco de volta (padrão React Navigation),
+  // cobrindo criação e edição sem duplicar a lógica de fetch acima. Ignora o primeiro
+  // evento de foco (montagem inicial), que já é coberto pelo useEffect de fetch acima.
+  const isFirstFocus = useRef(true);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      setRetryKey((k) => k + 1);
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   function confirmDelete(post) {
     Alert.alert(
@@ -95,10 +110,19 @@ export default function PostAdminListScreen() {
           <Text style={styles.author} numberOfLines={1}>
             {item.author}
           </Text>
-          <Pressable style={styles.deleteButton} onPress={() => confirmDelete(item)}>
-            <Ionicons name="trash-outline" size={20} color={colors.destructive} />
-            <Text style={styles.deleteLabel}>Excluir</Text>
-          </Pressable>
+          <View style={styles.actionsRow}>
+            <Pressable
+              style={styles.editButton}
+              onPress={() => navigation.navigate('PostForm', { id: item.id })}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.accent} />
+              <Text style={styles.editLabel}>Editar</Text>
+            </Pressable>
+            <Pressable style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+              <Ionicons name="trash-outline" size={20} color={colors.destructive} />
+              <Text style={styles.deleteLabel}>Excluir</Text>
+            </Pressable>
+          </View>
         </View>
       )}
       ListEmptyComponent={
@@ -163,12 +187,27 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
   },
+  actionsRow: {
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    gap: spacing.md,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    gap: spacing.xs,
+  },
+  editLabel: {
+    ...typography.label,
+    color: colors.accent,
+  },
   deleteButton: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     minHeight: 44,
-    marginTop: spacing.sm,
     gap: spacing.xs,
   },
   deleteLabel: {
