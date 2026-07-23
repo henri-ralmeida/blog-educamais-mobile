@@ -1,12 +1,13 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/env';
+import { getSession } from '../session/sessionStore';
 
 const client = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
 
-// Fase 1: sempre retorna null (leitura pública, sem sessão).
-// Fase 2: lido do AuthContext quando o professor autenticar.
+// Lê o papel atual da sessão via sessionStore (módulo puro, atualizado por
+// AuthContext.login()/logout()) — client.js não pode importar Context React.
 function getCurrentUserType() {
-  return null;
+  return getSession()?.role ?? null;
 }
 
 client.interceptors.request.use((config) => {
