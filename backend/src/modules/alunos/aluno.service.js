@@ -1,7 +1,9 @@
 const prisma = require("../../config/prisma");
 
 async function createAluno(data) {
-  return prisma.aluno.create({ data });
+  return prisma.aluno.create({
+    data: { ...data, email: data.email.trim().toLowerCase() },
+  });
 }
 
 async function listAlunos({ page = 1, limit = 10 } = {}) {
@@ -27,9 +29,13 @@ async function listAlunos({ page = 1, limit = 10 } = {}) {
 }
 
 async function updateAluno(id, data) {
+  const payload = { ...data };
+  if (payload.email) {
+    payload.email = payload.email.trim().toLowerCase();
+  }
   return prisma.aluno.update({
     where: { id },
-    data,
+    data: payload,
   });
 }
 

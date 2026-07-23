@@ -23,8 +23,8 @@ function validateBody(schema) {
   };
 }
 
-// Leitura (pública, paginada)
-router.get("/", controller.list);
+// Leitura protegida (não é conteúdo público como posts — expõe nome/email de professores)
+router.get("/", requireTeacher, controller.list);
 
 // Escrita (somente professor - simulado por header x-user-type)
 router.post("/", requireTeacher, validateBody(createProfessorSchema), controller.create);

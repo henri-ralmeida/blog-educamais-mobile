@@ -12,7 +12,7 @@ function omitSenha(professor) {
 async function createProfessor(data) {
   const senhaHash = await bcrypt.hash(data.senha, SALT_ROUNDS);
   const professor = await prisma.professor.create({
-    data: { ...data, senha: senhaHash },
+    data: { ...data, email: data.email.trim().toLowerCase(), senha: senhaHash },
   });
   return omitSenha(professor);
 }
@@ -41,6 +41,9 @@ async function listProfessores({ page = 1, limit = 10 } = {}) {
 
 async function updateProfessor(id, data) {
   const payload = { ...data };
+  if (payload.email) {
+    payload.email = payload.email.trim().toLowerCase();
+  }
   if (payload.senha) {
     payload.senha = await bcrypt.hash(payload.senha, SALT_ROUNDS);
   }

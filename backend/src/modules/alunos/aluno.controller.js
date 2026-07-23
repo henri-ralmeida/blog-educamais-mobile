@@ -5,17 +5,22 @@ async function create(req, res) {
     const aluno = await alunoService.createAluno(req.body);
     return res.status(201).json(aluno);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    if (error.code === "P2002") {
+      return res.status(409).json({ error: "Email já cadastrado" });
+    }
+    console.error(error);
+    return res.status(400).json({ error: "Requisição inválida" });
   }
 }
 
 async function list(req, res) {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
     const result = await alunoService.listAlunos({ page, limit });
     return res.json(result);
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -28,7 +33,11 @@ async function update(req, res) {
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Aluno not found" });
     }
-    return res.status(400).json({ error: error.message });
+    if (error.code === "P2002") {
+      return res.status(409).json({ error: "Email já cadastrado" });
+    }
+    console.error(error);
+    return res.status(400).json({ error: "Requisição inválida" });
   }
 }
 
