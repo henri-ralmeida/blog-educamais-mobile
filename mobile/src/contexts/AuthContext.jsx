@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useReducer } from 'react';
+import { createContext, useContext, useEffect, useReducer, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setSession, clearSession } from '../services/session/sessionStore';
 import { authService } from '../services/authService';
@@ -28,6 +28,10 @@ function reducer(state, action) {
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  // Detecta escrita obsoleta no AsyncStorage: se login()/logout() for chamado de novo
+  // antes de uma escrita anterior terminar, a escrita atrasada não pode "reviver" um
+  // estado já superado (race entre login e logout).
+  const persistSeqRef = useRef(0);
 
   // Loading gate no boot: isLoading só vira false no finally, garantindo
   // que RootNavigator nunca decida a stack antes da restauração da sessão terminar.
@@ -68,18 +72,26 @@ export function AuthProvider({ children }) {
   async function login(email, senha) {
     const professor = await authService.login(email, senha);
     const session = { role: 'teacher', name: professor.nome, id: professor.id };
+    const seq = ++persistSeqRef.current;
     setSession(session);
     dispatch({ type: 'LOGIN', session });
     try {
       await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
     } catch {
       // Sessão já está ativa em memória; falha ao persistir só afeta reabertura do app.
+    } finally {
+      // Se logout() (ou outro login()) rodou enquanto esta escrita estava em voo, esta
+      // escrita está obsoleta — não deixar uma sessão encerrada ser "revivida" no disco.
+      if (persistSeqRef.current !== seq) {
+        AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+      }
     }
   }
 
   async function logout() {
     clearSession();
     dispatch({ type: 'LOGOUT' });
+    ++persistSeqRef.current;
     try {
       await AsyncStorage.removeItem(SESSION_KEY);
     } catch {
