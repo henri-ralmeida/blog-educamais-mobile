@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useReducer } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setSession, clearSession } from '../services/session/sessionStore';
+import { authService } from '../services/authService';
 
 const SESSION_KEY = '@blogeducamais:session';
 
@@ -61,8 +62,12 @@ export function AuthProvider({ children }) {
   // Estado em memória (sessionStore/dispatch) é sempre a fonte de verdade da UI —
   // persistência em AsyncStorage é best-effort e nunca deve deixar isAuthenticated
   // dessincronizado de sessionStore se a escrita falhar.
-  async function login(name) {
-    const session = { role: 'teacher', name: name.trim() };
+  // Assinatura async login(email, senha) — login real contra POST /auth/login.
+  // O reject de authService.login (ex.: 401) propaga para quem chamou login(), sem ser
+  // capturado aqui (quem trata o erro é a LoginScreen).
+  async function login(email, senha) {
+    const professor = await authService.login(email, senha);
+    const session = { role: 'teacher', name: professor.nome, id: professor.id };
     setSession(session);
     dispatch({ type: 'LOGIN', session });
     try {

@@ -1,8 +1,5 @@
-// Login desta etapa: coleta apenas o nome do professor, sem senha real
-// verificada contra o backend — o backend atual só checa o header estático
-// `x-user-type: teacher`. o endpoint de login real chega depois, e a tela
-// passa a chamá-lo então. Nenhuma verificação de senha/token é
-// simulada aqui.
+// Login real do professor contra POST /auth/login, substituindo
+// o login fake da Fase 2 (só coletava um nome livre, sem verificação de credencial).
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -16,39 +13,64 @@ export default function LoginScreen() {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { name: '' } });
+  } = useForm({ defaultValues: { email: '', senha: '' } });
 
   async function onSubmit(data) {
     setLoginError(null);
     try {
-      await login(data.name);
-    } catch {
-      setLoginError('Não foi possível entrar. Tente novamente.');
+      await login(data.email, data.senha);
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        setLoginError('Email ou senha inválidos. Verifique suas credenciais e tente novamente.');
+      } else {
+        setLoginError('Não foi possível conectar ao servidor. Tente novamente.');
+      }
     }
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Nome do professor</Text>
+      <Text style={styles.label}>Email</Text>
       <Controller
         control={control}
-        name="name"
+        name="email"
         rules={{
-          required: 'Nome obrigatório',
-          validate: (v) => v.trim().length > 0 || 'Nome obrigatório',
+          required: 'Email obrigatório',
+          pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Email inválido' },
         }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}
-            placeholder="Digite seu nome"
+            placeholder="Digite seu email"
             placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            keyboardType="email-address"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
           />
         )}
       />
-      {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
+      {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+
+      <Text style={[styles.label, styles.fieldSpacing]}>Senha</Text>
+      <Controller
+        control={control}
+        name="senha"
+        rules={{ required: 'Senha obrigatória' }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            style={styles.input}
+            placeholder="Digite sua senha"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+          />
+        )}
+      />
+      {errors.senha && <Text style={styles.errorText}>{errors.senha.message}</Text>}
       {loginError && <Text style={styles.errorText}>{loginError}</Text>}
 
       <Pressable
@@ -73,6 +95,9 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
+  },
+  fieldSpacing: {
+    marginTop: spacing.lg,
   },
   input: {
     ...typography.body,
