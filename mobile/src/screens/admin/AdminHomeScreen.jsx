@@ -7,7 +7,12 @@ import { colors, spacing, typography } from '../../theme/tokens';
 
 function MenuRow({ icon, label, onPress }) {
   return (
-    <Pressable style={styles.row} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir ${label}`}
+    >
       <View style={styles.rowContent}>
         <Ionicons name={icon} size={24} color={colors.accent} />
         <Text style={styles.label}>{label}</Text>
@@ -52,6 +57,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.surface,
+  },
+  rowPressed: {
+    backgroundColor: colors.surface,
   },
   rowContent: {
     flexDirection: 'row',

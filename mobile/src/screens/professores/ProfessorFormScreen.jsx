@@ -3,7 +3,7 @@
 // backend real — dados de edição vêm de route.params (objeto completo já carregado na
 // lista), nunca de uma nova chamada de rede. Por isso não há loadingItem/loadError aqui.
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, Pressable } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { professoresService } from '../../services/professoresService';
 import { colors, spacing, typography } from '../../theme/tokens';
@@ -67,6 +67,7 @@ export default function ProfessorFormScreen({ route, navigation }) {
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
+            accessibilityLabel="Nome"
           />
         )}
       />
@@ -86,10 +87,12 @@ export default function ProfessorFormScreen({ route, navigation }) {
             placeholder="Digite o email"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
+            autoComplete="email"
             keyboardType="email-address"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
+            accessibilityLabel="Email"
           />
         )}
       />
@@ -117,10 +120,12 @@ export default function ProfessorFormScreen({ route, navigation }) {
               isEditMode ? 'Deixe em branco para manter a senha atual' : 'Digite uma senha'
             }
             placeholderTextColor={colors.textMuted}
+            autoComplete="new-password"
             secureTextEntry
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
+            accessibilityLabel="Senha"
           />
         )}
       />
@@ -129,13 +134,26 @@ export default function ProfessorFormScreen({ route, navigation }) {
       {submitError && <Text style={[styles.errorText, styles.submitError]}>{submitError}</Text>}
 
       <Pressable
-        style={[styles.button, isSubmitting && styles.buttonDisabled]}
+        style={({ pressed }) => [
+          styles.button,
+          isSubmitting && styles.buttonDisabled,
+          pressed && !isSubmitting && styles.buttonPressed,
+        ]}
         onPress={handleSubmit(onSubmit)}
         disabled={isSubmitting}
+        accessibilityRole="button"
+        accessibilityLabel={isSubmitting
+          ? 'Salvando professor'
+          : isEditMode ? 'Salvar alterações' : 'Cadastrar professor'}
+        accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
       >
-        <Text style={styles.buttonText}>
-          {isEditMode ? 'Salvar alterações' : 'Cadastrar professor'}
-        </Text>
+        {isSubmitting ? (
+          <ActivityIndicator color={colors.onAccent} accessibilityLabel="Salvando professor" />
+        ) : (
+          <Text style={styles.buttonText}>
+            {isEditMode ? 'Salvar alterações' : 'Cadastrar professor'}
+          </Text>
+        )}
       </Pressable>
     </ScrollView>
   );
@@ -184,9 +202,11 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
+  buttonPressed: {
+    opacity: 0.72,
+  },
   buttonText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    ...typography.button,
+    color: colors.onAccent,
   },
 });

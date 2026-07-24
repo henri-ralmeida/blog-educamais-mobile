@@ -55,7 +55,13 @@ function CreatePostButton({ navigation }) {
 
 function CreateProfessorButton({ navigation }) {
   return (
-    <Pressable onPress={() => navigation.navigate('ProfessorForm')}>
+    <Pressable
+      style={({ pressed }) => [styles.headerAction, pressed && styles.headerActionPressed]}
+      onPress={() => navigation.navigate('ProfessorForm')}
+      accessibilityRole="button"
+      accessibilityLabel="Criar novo professor"
+      hitSlop={spacing.sm}
+    >
       <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
     </Pressable>
   );
@@ -63,7 +69,13 @@ function CreateProfessorButton({ navigation }) {
 
 function CreateAlunoButton({ navigation }) {
   return (
-    <Pressable onPress={() => navigation.navigate('AlunoForm')}>
+    <Pressable
+      style={({ pressed }) => [styles.headerAction, pressed && styles.headerActionPressed]}
+      onPress={() => navigation.navigate('AlunoForm')}
+      accessibilityRole="button"
+      accessibilityLabel="Criar novo aluno"
+      hitSlop={spacing.sm}
+    >
       <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
     </Pressable>
   );

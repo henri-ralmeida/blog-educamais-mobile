@@ -48,6 +48,7 @@ export default function ProfessorListScreen({ navigation }) {
 
   // Ignora o primeiro evento de foco (montagem inicial), já coberto pelo useEffect acima.
   const isFirstFocus = useRef(true);
+  const endReachedLockRef = useRef(false);
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       if (isFirstFocus.current) {
@@ -60,8 +61,8 @@ export default function ProfessorListScreen({ navigation }) {
   }, [navigation]);
 
   function handleEndReached() {
-    // Guarda dupla: não busca se já há fetch em voo, nem se não há mais páginas.
-    if (isFetchingMore || !hasMore) return;
+    if (endReachedLockRef.current || isFetchingMore || !hasMore) return;
+    endReachedLockRef.current = true;
     setIsFetchingMore(true);
     const nextPage = page + 1;
     professoresService.list({ page: nextPage, limit: PAGE_LIMIT })
@@ -74,6 +75,10 @@ export default function ProfessorListScreen({ navigation }) {
         // Falha ao buscar próxima página: mantém lista atual, permite retry no próximo scroll.
       })
       .finally(() => setIsFetchingMore(false));
+  }
+
+  function handleMomentumScrollBegin() {
+    endReachedLockRef.current = false;
   }
 
   function confirmDelete(professor) {
@@ -111,7 +116,7 @@ export default function ProfessorListScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando professores" />
       </View>
     );
   }
@@ -122,7 +127,12 @@ export default function ProfessorListScreen({ navigation }) {
         <Text style={styles.errorText}>
           Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.
         </Text>
-        <Pressable style={styles.retryButton} onPress={() => setRetryKey((k) => k + 1)}>
+        <Pressable
+          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
+          onPress={() => setRetryKey((k) => k + 1)}
+          accessibilityRole="button"
+          accessibilityLabel="Tentar carregar os professores novamente"
+        >
           <Text style={styles.retryButtonText}>Tentar novamente</Text>
         </Pressable>
       </View>
@@ -137,7 +147,12 @@ export default function ProfessorListScreen({ navigation }) {
       keyExtractor={(item) => String(item.id)}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
-      ListFooterComponent={isFetchingMore ? <ActivityIndicator color={colors.accent} /> : null}
+      onMomentumScrollBegin={handleMomentumScrollBegin}
+      ListFooterComponent={
+        isFetchingMore ? (
+          <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando mais professores" />
+        ) : null
+      }
       renderItem={({ item }) => (
         <View style={styles.item}>
           <Text style={styles.nome} numberOfLines={1}>
@@ -148,15 +163,22 @@ export default function ProfessorListScreen({ navigation }) {
           </Text>
           <View style={styles.actionsRow}>
             <Pressable
-              style={styles.editButton}
+              style={({ pressed }) => [styles.editButton, pressed && styles.buttonPressed]}
               onPress={() =>
                 navigation.navigate('ProfessorForm', { id: item.id, nome: item.nome, email: item.email })
               }
+              accessibilityRole="button"
+              accessibilityLabel={`Editar professor: ${item.nome}`}
             >
               <Ionicons name="create-outline" size={20} color={colors.accent} />
               <Text style={styles.editLabel}>Editar</Text>
             </Pressable>
-            <Pressable style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+            <Pressable
+              style={({ pressed }) => [styles.deleteButton, pressed && styles.buttonPressed]}
+              onPress={() => confirmDelete(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Excluir professor: ${item.nome}`}
+            >
               <Ionicons name="trash-outline" size={20} color={colors.destructive} />
               <Text style={styles.deleteLabel}>Excluir</Text>
             </Pressable>
@@ -205,9 +227,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    ...typography.button,
+    color: colors.onAccent,
+  },
+  buttonPressed: {
+    opacity: 0.72,
   },
   item: {
     backgroundColor: colors.surface,
