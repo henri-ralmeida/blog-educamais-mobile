@@ -28,10 +28,23 @@ function reducer(state, action) {
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  // Detecta escrita obsoleta no AsyncStorage: se login()/logout() for chamado de novo
-  // antes de uma escrita anterior terminar, a escrita atrasada não pode "reviver" um
-  // estado já superado (race entre login e logout).
-  const persistSeqRef = useRef(0);
+  // Serializa persistência da sessão. Cada operação lê o estado mais recente somente
+  // quando chega à frente da fila, impedindo escrita antiga de apagar login posterior.
+  const desiredSessionRef = useRef(null);
+  const persistQueueRef = useRef(Promise.resolve());
+
+  function persistLatestSession() {
+    persistQueueRef.current = persistQueueRef.current
+      .catch(() => {})
+      .then(() => {
+        const desiredSession = desiredSessionRef.current;
+        if (desiredSession) {
+          return AsyncStorage.setItem(SESSION_KEY, JSON.stringify(desiredSession));
+        }
+        return AsyncStorage.removeItem(SESSION_KEY);
+      });
+    return persistQueueRef.current;
+  }
 
   // Loading gate no boot: isLoading só vira false no finally, garantindo
   // que RootNavigator nunca decida a stack antes da restauração da sessão terminar.
@@ -44,6 +57,7 @@ export function AuthProvider({ children }) {
         if (!raw) return;
         try {
           restoredSession = JSON.parse(raw);
+          desiredSessionRef.current = restoredSession;
           setSession(restoredSession);
         } catch {
           // JSON corrompido nunca deve quebrar o boot do app — trata como sessão ausente.
@@ -72,30 +86,25 @@ export function AuthProvider({ children }) {
   async function login(email, senha) {
     const professor = await authService.login(email, senha);
     const session = { role: 'teacher', name: professor.nome, id: professor.id };
-    const seq = ++persistSeqRef.current;
+    desiredSessionRef.current = session;
     setSession(session);
     dispatch({ type: 'LOGIN', session });
     try {
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      await persistLatestSession();
     } catch {
       // Sessão já está ativa em memória; falha ao persistir só afeta reabertura do app.
-    } finally {
-      // Se logout() (ou outro login()) rodou enquanto esta escrita estava em voo, esta
-      // escrita está obsoleta — não deixar uma sessão encerrada ser "revivida" no disco.
-      if (persistSeqRef.current !== seq) {
-        AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
-      }
     }
   }
 
   async function logout() {
+    desiredSessionRef.current = null;
     clearSession();
     dispatch({ type: 'LOGOUT' });
-    ++persistSeqRef.current;
     try {
-      await AsyncStorage.removeItem(SESSION_KEY);
+      await persistLatestSession();
     } catch {
-      // Falha ao persistir o logout não deve manter a UI em estado autenticado.
+      // Tenta novamente após falha para não restaurar sessão encerrada no próximo boot.
+      persistLatestSession().catch(() => {});
     }
   }
 
