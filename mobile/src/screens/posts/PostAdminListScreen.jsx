@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import EmptyState from '../../components/EmptyState';
 import { postsService } from '../../services/postsService';
 import { colors, spacing, typography } from '../../theme/tokens';
@@ -11,41 +12,28 @@ export default function PostAdminListScreen({ navigation }) {
   const [hasError, setHasError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
-  // Guarda cancelled — mesmo padrão já estabelecido na Fase 1 (evita setState em
-  // componente desmontado). Sem paginação/infinite-scroll nesta tela.
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setHasError(false);
-    postsService.list()
-      .then((data) => {
-        if (!cancelled) setPosts(data);
-      })
-      .catch(() => {
-        if (!cancelled) setHasError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [retryKey]);
-
-  // Recarrega a lista sempre que a tela ganha foco de volta (padrão React Navigation),
-  // cobrindo criação e edição sem duplicar a lógica de fetch acima. Ignora o primeiro
-  // evento de foco (montagem inicial), que já é coberto pelo useEffect de fetch acima.
-  const isFirstFocus = useRef(true);
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      if (isFirstFocus.current) {
-        isFirstFocus.current = false;
-        return;
-      }
-      setRetryKey((k) => k + 1);
-    });
-    return unsubscribe;
-  }, [navigation]);
+  // Recarrega no foco inicial e após voltar da criação/edição. Cleanup impede
+  // atualização de estado quando tela perde foco ou é desmontada.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
+      setHasError(false);
+      postsService.list()
+        .then((data) => {
+          if (!cancelled) setPosts(data);
+        })
+        .catch(() => {
+          if (!cancelled) setHasError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [retryKey]),
+  );
 
   function confirmDelete(post) {
     Alert.alert(
