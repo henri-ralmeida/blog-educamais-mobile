@@ -7,6 +7,19 @@ const SESSION_KEY = '@blogeducamais:session';
 
 const AuthContext = createContext(null);
 
+function isValidSession(session) {
+  return (
+    session !== null
+    && typeof session === 'object'
+    && !Array.isArray(session)
+    && session.role === 'teacher'
+    && session.id !== undefined
+    && session.id !== null
+    && typeof session.name === 'string'
+    && session.name.trim().length > 0
+  );
+}
+
 const initialState = {
   isAuthenticated: false,
   user: null,
@@ -56,12 +69,17 @@ export function AuthProvider({ children }) {
       .then((raw) => {
         if (!raw) return;
         try {
-          restoredSession = JSON.parse(raw);
+          const parsedSession = JSON.parse(raw);
+          if (!isValidSession(parsedSession)) {
+            return AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+          }
+          restoredSession = parsedSession;
           desiredSessionRef.current = restoredSession;
           setSession(restoredSession);
         } catch {
           // JSON corrompido nunca deve quebrar o boot do app — trata como sessão ausente.
           restoredSession = null;
+          return AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
         }
       })
       .catch(() => {
@@ -98,13 +116,14 @@ export function AuthProvider({ children }) {
 
   async function logout() {
     desiredSessionRef.current = null;
-    clearSession();
-    dispatch({ type: 'LOGOUT' });
     try {
       await persistLatestSession();
     } catch {
-      // Tenta novamente após falha para não restaurar sessão encerrada no próximo boot.
-      persistLatestSession().catch(() => {});
+      throw new Error('Não foi possível encerrar a sessão. Tente novamente.');
+    }
+    if (desiredSessionRef.current === null) {
+      clearSession();
+      dispatch({ type: 'LOGOUT' });
     }
   }
 

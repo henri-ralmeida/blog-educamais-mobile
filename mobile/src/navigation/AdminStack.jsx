@@ -1,4 +1,4 @@
-import { Pressable, Text } from 'react-native';
+import { Alert, Pressable, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AdminHomeScreen from '../screens/admin/AdminHomeScreen';
@@ -17,8 +17,17 @@ const Stack = createNativeStackNavigator();
 // dentro do corpo de um componente React, nunca dentro de uma função de config de rota.
 function LogoutButton() {
   const { logout } = useAuth();
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } catch (err) {
+      Alert.alert('Erro', err.message);
+    }
+  }
+
   return (
-    <Pressable onPress={logout}>
+    <Pressable onPress={handleLogout}>
       <Text style={{ color: colors.textSecondary }}>Sair</Text>
     </Pressable>
   );
