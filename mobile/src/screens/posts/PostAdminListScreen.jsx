@@ -68,7 +68,7 @@ export default function PostAdminListScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando posts" />
       </View>
     );
   }
@@ -79,7 +79,12 @@ export default function PostAdminListScreen({ navigation }) {
         <Text style={styles.errorText}>
           Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.
         </Text>
-        <Pressable style={styles.retryButton} onPress={() => setRetryKey((k) => k + 1)}>
+        <Pressable
+          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
+          onPress={() => setRetryKey((k) => k + 1)}
+          accessibilityRole="button"
+          accessibilityLabel="Tentar carregar os posts novamente"
+        >
           <Text style={styles.retryButtonText}>Tentar novamente</Text>
         </Pressable>
       </View>
@@ -97,18 +102,28 @@ export default function PostAdminListScreen({ navigation }) {
           <Text style={styles.title} numberOfLines={2}>
             {item.title}
           </Text>
+          <Text style={styles.preview} numberOfLines={3}>
+            {item.content}
+          </Text>
           <Text style={styles.author} numberOfLines={1}>
             {item.author}
           </Text>
           <View style={styles.actionsRow}>
             <Pressable
-              style={styles.editButton}
+              style={({ pressed }) => [styles.editButton, pressed && styles.buttonPressed]}
               onPress={() => navigation.navigate('PostForm', { id: item.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`Editar post: ${item.title}`}
             >
               <Ionicons name="create-outline" size={20} color={colors.accent} />
               <Text style={styles.editLabel}>Editar</Text>
             </Pressable>
-            <Pressable style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+            <Pressable
+              style={({ pressed }) => [styles.deleteButton, pressed && styles.buttonPressed]}
+              onPress={() => confirmDelete(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Excluir post: ${item.title}`}
+            >
               <Ionicons name="trash-outline" size={20} color={colors.destructive} />
               <Text style={styles.deleteLabel}>Excluir</Text>
             </Pressable>
@@ -157,9 +172,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    ...typography.button,
+    color: colors.onAccent,
+  },
+  buttonPressed: {
+    opacity: 0.72,
   },
   item: {
     backgroundColor: colors.surface,
@@ -172,10 +189,15 @@ const styles = StyleSheet.create({
     ...typography.heading,
     color: colors.textPrimary,
   },
+  preview: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
   author: {
     ...typography.label,
     color: colors.textMuted,
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   actionsRow: {
     flexDirection: 'row',

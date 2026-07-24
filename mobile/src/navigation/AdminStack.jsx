@@ -1,4 +1,4 @@
-import { Alert, Pressable, Text } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AdminHomeScreen from '../screens/admin/AdminHomeScreen';
@@ -9,7 +9,7 @@ import ProfessorFormScreen from '../screens/professores/ProfessorFormScreen';
 import AlunoListScreen from '../screens/alunos/AlunoListScreen';
 import AlunoFormScreen from '../screens/alunos/AlunoFormScreen';
 import { useAuth } from '../contexts/AuthContext';
-import { colors } from '../theme/tokens';
+import { colors, spacing, typography } from '../theme/tokens';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,15 +27,27 @@ function LogoutButton() {
   }
 
   return (
-    <Pressable onPress={handleLogout}>
-      <Text style={{ color: colors.textSecondary }}>Sair</Text>
+    <Pressable
+      style={({ pressed }) => [styles.headerAction, pressed && styles.headerActionPressed]}
+      onPress={handleLogout}
+      accessibilityRole="button"
+      accessibilityLabel="Sair da área administrativa"
+      hitSlop={spacing.sm}
+    >
+      <Text style={styles.logoutText}>Sair</Text>
     </Pressable>
   );
 }
 
 function CreatePostButton({ navigation }) {
   return (
-    <Pressable onPress={() => navigation.navigate('PostForm')}>
+    <Pressable
+      style={({ pressed }) => [styles.headerAction, pressed && styles.headerActionPressed]}
+      onPress={() => navigation.navigate('PostForm')}
+      accessibilityRole="button"
+      accessibilityLabel="Criar novo post"
+      hitSlop={spacing.sm}
+    >
       <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
     </Pressable>
   );
@@ -59,7 +71,12 @@ function CreateAlunoButton({ navigation }) {
 
 export default function AdminStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerTitleStyle: typography.display,
+        headerTintColor: colors.textPrimary,
+      }}
+    >
       <Stack.Screen
         name="AdminHome"
         component={AdminHomeScreen}
@@ -116,3 +133,19 @@ export default function AdminStack() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  headerAction: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActionPressed: {
+    opacity: 0.72,
+  },
+  logoutText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+});

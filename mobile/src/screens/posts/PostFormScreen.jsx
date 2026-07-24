@@ -71,7 +71,7 @@ export default function PostFormScreen({ route, navigation }) {
   if (loadingPost) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando post" />
       </View>
     );
   }
@@ -86,8 +86,10 @@ export default function PostFormScreen({ route, navigation }) {
             : 'Não foi possível carregar o post. Verifique sua conexão e tente novamente.'}
         </Text>
         <Pressable
-          style={styles.retryButton}
+          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
           onPress={notFound ? navigation.goBack : () => setLoadKey((key) => key + 1)}
+          accessibilityRole="button"
+          accessibilityLabel={notFound ? 'Voltar para a lista de posts' : 'Tentar carregar o post novamente'}
         >
           <Text style={styles.buttonText}>{notFound ? 'Voltar' : 'Tentar novamente'}</Text>
         </Pressable>
@@ -110,6 +112,7 @@ export default function PostFormScreen({ route, navigation }) {
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
+            accessibilityLabel="Título"
           />
         )}
       />
@@ -129,6 +132,7 @@ export default function PostFormScreen({ route, navigation }) {
             onChangeText={onChange}
             value={value}
             multiline
+            accessibilityLabel="Conteúdo"
           />
         )}
       />
@@ -140,11 +144,24 @@ export default function PostFormScreen({ route, navigation }) {
       {submitError && <Text style={[styles.errorText, styles.submitError]}>{submitError}</Text>}
 
       <Pressable
-        style={[styles.button, isSubmitting && styles.buttonDisabled]}
+        style={({ pressed }) => [
+          styles.button,
+          isSubmitting && styles.buttonDisabled,
+          pressed && !isSubmitting && styles.buttonPressed,
+        ]}
         onPress={handleSubmit(onSubmit)}
         disabled={isSubmitting}
+        accessibilityRole="button"
+        accessibilityLabel={isSubmitting
+          ? 'Salvando post'
+          : isEditMode ? 'Salvar alterações' : 'Publicar post'}
+        accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
       >
-        <Text style={styles.buttonText}>{isEditMode ? 'Salvar alterações' : 'Publicar post'}</Text>
+        {isSubmitting ? (
+          <ActivityIndicator color={colors.onAccent} accessibilityLabel="Salvando post" />
+        ) : (
+          <Text style={styles.buttonText}>{isEditMode ? 'Salvar alterações' : 'Publicar post'}</Text>
+        )}
       </Pressable>
     </ScrollView>
   );
@@ -217,9 +234,11 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
+  buttonPressed: {
+    opacity: 0.72,
+  },
   buttonText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    ...typography.button,
+    color: colors.onAccent,
   },
 });
