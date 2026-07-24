@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -25,6 +25,7 @@ export default function PostListScreen({ navigation }) {
   const [hasError, setHasError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
+  const requestSeqRef = useRef(0);
 
   // Debounce: agenda a atualização de debouncedTerm 400ms após o último keystroke,
   // cancelando o timeout anterior a cada novo caractere digitado.
@@ -35,48 +36,37 @@ export default function PostListScreen({ navigation }) {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  // cancelled/manualFetchToken evitam setState em componente desmontado e descartam
-  // respostas obsoletas de uma busca anterior mais lenta.
-  useEffect(() => {
-    let cancelled = false;
-    postsService
-      .search(debouncedTerm)
+  function fetchPosts(term) {
+    const requestSeq = ++requestSeqRef.current;
+    const normalizedTerm = term.trim();
+
+    setHasError(false);
+    return postsService
+      .search(normalizedTerm)
       .then((data) => {
-        if (cancelled) return;
+        if (requestSeq !== requestSeqRef.current) return;
         setAllPosts(data);
         setVisibleCount(PAGE_SIZE);
         setHasError(false);
       })
       .catch(() => {
-        if (!cancelled) setHasError(true);
+        if (requestSeq === requestSeqRef.current) setHasError(true);
       })
       .finally(() => {
-        if (!cancelled) {
+        if (requestSeq === requestSeqRef.current) {
           setLoading(false);
           setRefreshing(false);
         }
       });
-    return () => {
-      cancelled = true;
-    };
+  }
+
+  useEffect(() => {
+    fetchPosts(debouncedTerm);
   }, [debouncedTerm]);
 
-  function fetchPosts(term) {
-    setHasError(false);
-    return postsService
-      .search(term)
-      .then((data) => {
-        setAllPosts(data);
-        setVisibleCount(PAGE_SIZE);
-      })
-      .catch(() => {
-        setHasError(true);
-      })
-      .finally(() => {
-        setLoading(false);
-        setRefreshing(false);
-      });
-  }
+  useEffect(() => () => {
+    requestSeqRef.current += 1;
+  }, []);
 
   function handleEndReached() {
     if (visibleCount >= allPosts.length) return;
