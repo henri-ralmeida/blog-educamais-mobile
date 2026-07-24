@@ -12,7 +12,9 @@ export default function PostFormScreen({ route, navigation }) {
   const { user } = useAuth();
 
   const [loadingPost, setLoadingPost] = useState(isEditMode);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [loadKey, setLoadKey] = useState(0);
+  const [postAuthor, setPostAuthor] = useState(user.name);
   const [submitError, setSubmitError] = useState(null);
 
   const {
@@ -27,13 +29,17 @@ export default function PostFormScreen({ route, navigation }) {
   useEffect(() => {
     if (!isEditMode) return;
     let cancelled = false;
+    setLoadingPost(true);
+    setLoadError(null);
     postsService.getById(id)
       .then((data) => {
         if (cancelled) return;
+        setPostAuthor(data.author ?? user.name);
         reset({ title: data.title ?? '', content: data.content ?? '' });
       })
-      .catch(() => {
-        if (!cancelled) setLoadError(true);
+      .catch((err) => {
+        if (cancelled) return;
+        setLoadError(err?.response?.status === 404 ? 'notFound' : 'requestFailed');
       })
       .finally(() => {
         if (!cancelled) setLoadingPost(false);
@@ -41,12 +47,12 @@ export default function PostFormScreen({ route, navigation }) {
     return () => {
       cancelled = true;
     };
-  }, [id, isEditMode, reset]);
+  }, [id, isEditMode, loadKey, reset, user.name]);
 
   function onSubmit(data) {
     setSubmitError(null);
-    // Payload sempre completo (title/content/author) — nunca PUT parcial.
-    const payload = { title: data.title, content: data.content, author: user.name };
+    // Edição preserva autoria original; criação atribui autoria ao professor autenticado.
+    const payload = { title: data.title, content: data.content, author: postAuthor };
     const request = isEditMode ? postsService.update(id, payload) : postsService.create(payload);
     return request
       .then(() => {
@@ -71,9 +77,20 @@ export default function PostFormScreen({ route, navigation }) {
   }
 
   if (loadError) {
+    const notFound = loadError === 'notFound';
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Não foi possível carregar o post. Verifique sua conexão e tente novamente.</Text>
+        <Text style={styles.errorText}>
+          {notFound
+            ? 'Este post não existe mais.'
+            : 'Não foi possível carregar o post. Verifique sua conexão e tente novamente.'}
+        </Text>
+        <Pressable
+          style={styles.retryButton}
+          onPress={notFound ? navigation.goBack : () => setLoadKey((key) => key + 1)}
+        >
+          <Text style={styles.buttonText}>{notFound ? 'Voltar' : 'Tentar novamente'}</Text>
+        </Pressable>
       </View>
     );
   }
@@ -118,7 +135,7 @@ export default function PostFormScreen({ route, navigation }) {
       {errors.content && <Text style={styles.errorText}>{errors.content.message}</Text>}
 
       <Text style={[styles.label, styles.fieldSpacing]}>Autor</Text>
-      <Text style={styles.readonlyValue}>{user.name}</Text>
+      <Text style={styles.readonlyValue}>{postAuthor}</Text>
 
       {submitError && <Text style={[styles.errorText, styles.submitError]}>{submitError}</Text>}
 
@@ -179,6 +196,15 @@ const styles = StyleSheet.create({
   },
   submitError: {
     marginTop: spacing.xl,
+  },
+  retryButton: {
+    marginTop: spacing.lg,
+    minHeight: 44,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   button: {
     marginTop: spacing.xl,
