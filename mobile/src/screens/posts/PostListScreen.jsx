@@ -106,6 +106,7 @@ export default function PostListScreen({ navigation }) {
   }
 
   const visiblePosts = allPosts.slice(0, visibleCount);
+  const normalizedTerm = debouncedTerm.trim();
 
   return (
     <FlatList
@@ -135,11 +136,11 @@ export default function PostListScreen({ navigation }) {
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} colors={[colors.accent]} />
       }
       ListEmptyComponent={
-        debouncedTerm ? (
+        normalizedTerm ? (
           <EmptyState
             icon="document-text-outline"
             heading="Nenhum resultado para sua busca"
-            body={`Não encontramos posts para "${debouncedTerm}". Tente outra palavra-chave.`}
+            body={`Não encontramos posts para "${normalizedTerm}". Tente outra palavra-chave.`}
           />
         ) : (
           <EmptyState
