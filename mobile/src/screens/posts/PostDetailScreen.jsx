@@ -43,8 +43,13 @@ export default function PostDetailScreen({ route }) {
   if (error) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Não foi possível carregar o post. Verifique sua conexão e tente novamente.</Text>
-        <Pressable style={styles.retryButton} onPress={() => setRetryKey((k) => k + 1)}>
+        <Text style={styles.errorText}>Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.</Text>
+        <Pressable
+          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
+          onPress={() => setRetryKey((k) => k + 1)}
+          accessibilityRole="button"
+          accessibilityLabel="Tentar carregar o post novamente"
+        >
           <Text style={styles.retryButtonText}>Tentar novamente</Text>
         </Pressable>
       </View>
@@ -104,8 +109,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    ...typography.button,
+    color: colors.onAccent,
+  },
+  buttonPressed: {
+    opacity: 0.72,
   },
 });

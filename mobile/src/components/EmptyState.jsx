@@ -14,6 +14,7 @@ export default function EmptyState({ heading, body, icon }) {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing['3xl'],
@@ -28,7 +29,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   body: {
-    ...typography.body,
+    ...typography.label,
     color: colors.textMuted,
     textAlign: 'center',
   },

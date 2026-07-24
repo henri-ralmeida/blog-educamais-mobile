@@ -11,7 +11,13 @@ function buildDescription(content) {
 
 export default function PostCard({ post, onPress }) {
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Ler post: ${post.title}`}
+      accessibilityHint="Abre o conteúdo completo do post"
+    >
       <Text style={styles.title} numberOfLines={2}>
         {post.title}
       </Text>
@@ -33,6 +39,9 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
     borderRadius: 8,
+  },
+  cardPressed: {
+    opacity: 0.72,
   },
   title: {
     ...typography.heading,

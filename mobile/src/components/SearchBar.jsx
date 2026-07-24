@@ -17,6 +17,9 @@ export default function SearchBar({ value, onChangeText, placeholder = 'Buscar p
         placeholderTextColor={colors.textMuted}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        accessibilityLabel="Buscar posts por título ou conteúdo"
+        accessibilityRole="search"
+        returnKeyType="search"
       />
     </View>
   );
@@ -30,7 +33,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: colors.transparent,
     marginHorizontal: spacing.md,
     paddingHorizontal: spacing.md,
   },

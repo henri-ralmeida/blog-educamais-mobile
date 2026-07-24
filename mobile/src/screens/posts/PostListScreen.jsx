@@ -22,10 +22,13 @@ export default function PostListScreen({ navigation }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
   const requestSeqRef = useRef(0);
+  const endReachedLockRef = useRef(false);
+  const loadMoreTimeoutRef = useRef(null);
 
   // Debounce: agenda a atualização de debouncedTerm 400ms após o último keystroke,
   // cancelando o timeout anterior a cada novo caractere digitado.
@@ -36,10 +39,15 @@ export default function PostListScreen({ navigation }) {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  function fetchPosts(term) {
+  function fetchPosts(term, { finishRefresh = false } = {}) {
     const requestSeq = ++requestSeqRef.current;
     const normalizedTerm = term.trim();
 
+    if (loadMoreTimeoutRef.current) {
+      clearTimeout(loadMoreTimeoutRef.current);
+      loadMoreTimeoutRef.current = null;
+      setIsLoadingMore(false);
+    }
     setHasError(false);
     return postsService
       .search(normalizedTerm)
@@ -53,10 +61,8 @@ export default function PostListScreen({ navigation }) {
         if (requestSeq === requestSeqRef.current) setHasError(true);
       })
       .finally(() => {
-        if (requestSeq === requestSeqRef.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
+        if (requestSeq === requestSeqRef.current) setLoading(false);
+        if (finishRefresh) setRefreshing(false);
       });
   }
 
@@ -66,16 +72,27 @@ export default function PostListScreen({ navigation }) {
 
   useEffect(() => () => {
     requestSeqRef.current += 1;
+    if (loadMoreTimeoutRef.current) clearTimeout(loadMoreTimeoutRef.current);
   }, []);
 
   function handleEndReached() {
-    if (visibleCount >= allPosts.length) return;
-    setVisibleCount((c) => Math.min(c + PAGE_SIZE, allPosts.length));
+    if (endReachedLockRef.current || visibleCount >= allPosts.length) return;
+    endReachedLockRef.current = true;
+    setIsLoadingMore(true);
+    loadMoreTimeoutRef.current = setTimeout(() => {
+      setVisibleCount((c) => Math.min(c + PAGE_SIZE, allPosts.length));
+      setIsLoadingMore(false);
+      loadMoreTimeoutRef.current = null;
+    }, 120);
+  }
+
+  function handleMomentumScrollBegin() {
+    endReachedLockRef.current = false;
   }
 
   function handleRefresh() {
     setRefreshing(true);
-    fetchPosts(debouncedTerm);
+    fetchPosts(debouncedTerm, { finishRefresh: true });
   }
 
   function handleRetry() {
@@ -98,7 +115,12 @@ export default function PostListScreen({ navigation }) {
         <Text style={styles.errorText}>
           Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.
         </Text>
-        <Pressable style={styles.retryButton} onPress={handleRetry}>
+        <Pressable
+          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
+          onPress={handleRetry}
+          accessibilityRole="button"
+          accessibilityLabel="Tentar carregar os posts novamente"
+        >
           <Text style={styles.retryButtonText}>Tentar novamente</Text>
         </Pressable>
       </View>
@@ -111,7 +133,10 @@ export default function PostListScreen({ navigation }) {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        visiblePosts.length === 0 && styles.emptyListContent,
+      ]}
       data={visiblePosts}
       keyExtractor={(item) => String(item.id)}
       ListHeaderComponent={
@@ -127,9 +152,14 @@ export default function PostListScreen({ navigation }) {
       )}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
+      onMomentumScrollBegin={handleMomentumScrollBegin}
       ListFooterComponent={
-        visibleCount < allPosts.length ? (
-          <ActivityIndicator color={colors.accent} style={styles.footerLoader} />
+        isLoadingMore ? (
+          <ActivityIndicator
+            color={colors.accent}
+            style={styles.footerLoader}
+            accessibilityLabel="Carregando mais posts"
+          />
         ) : null
       }
       refreshControl={
@@ -163,6 +193,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     flexGrow: 1,
   },
+  emptyListContent: {
+    flexGrow: 1,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -185,9 +218,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    ...typography.button,
+    color: colors.onAccent,
+  },
+  buttonPressed: {
+    opacity: 0.72,
   },
   footerLoader: {
     marginVertical: spacing.lg,
