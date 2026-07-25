@@ -1,0 +1,196 @@
+diff --git a/lib/module/Header/Header.js b/lib/module/Header/Header.js
+index 4daf3ccca581a33c1193df007f1ad87810dd846f..6b298ce4ca95a3213ba51027b59f83b5b4714765 100644
+--- a/lib/module/Header/Header.js
++++ b/lib/module/Header/Header.js
+@@ -241,42 +241,45 @@ export function Header(props) {
+     ...props
+   }) : customTitle;
+   return /*#__PURE__*/_jsxs(Animated.View, {
+-    pointerEvents: "box-none",
+     style: [{
+       height,
+       minHeight,
+       maxHeight,
+       opacity,
+       transform
++    }, {
++      pointerEvents: "box-none"
+     }],
+     children: [/*#__PURE__*/_jsx(Animated.View, {
+-      pointerEvents: "box-none",
+-      style: [StyleSheet.absoluteFill, backgroundContainerStyle],
++      style: [StyleSheet.absoluteFill, backgroundContainerStyle, {
++        pointerEvents: "box-none"
++      }],
+       children: headerBackground ? headerBackground({
+         style: backgroundStyle
+       }) : /*#__PURE__*/_jsx(HeaderBackground, {
+-        pointerEvents:
+-        // Allow touch through the header when background color is transparent
+-        headerTransparent && (backgroundStyle.backgroundColor === 'transparent' || Color(backgroundStyle.backgroundColor).alpha() === 0) ? 'none' : 'auto',
+-        style: backgroundStyle
++        style: [backgroundStyle, {
++          // Allow touch through the header when background color is transparent
++          pointerEvents: headerTransparent && (backgroundStyle.backgroundColor === 'transparent' || Color(backgroundStyle.backgroundColor).alpha() === 0) ? 'none' : 'auto'
++        }]
+       })
+     }), /*#__PURE__*/_jsx(View, {
+-      pointerEvents: "none",
+       style: {
+-        height: headerStatusBarHeight
++        height: headerStatusBarHeight,
++        pointerEvents: "none"
+       }
+     }), /*#__PURE__*/_jsxs(View, {
+-      pointerEvents: "box-none",
+-      style: [styles.content, Platform.OS === 'ios' && frame.width >= IPAD_MINI_MEDIUM_WIDTH ? styles.large : null],
++      style: [styles.content, Platform.OS === 'ios' && frame.width >= IPAD_MINI_MEDIUM_WIDTH ? styles.large : null, {
++        pointerEvents: "box-none"
++      }],
+       children: [/*#__PURE__*/_jsx(Animated.View, {
+-        pointerEvents: "box-none",
+         style: [styles.start, !searchBarVisible && headerTitleAlign === 'center' && styles.expand, {
+           marginStart: insets.left
+-        }, leftContainerStyle],
++        }, leftContainerStyle, {
++          pointerEvents: "box-none"
++        }],
+         children: leftButton
+       }), Platform.OS === 'ios' || !searchBarVisible ? /*#__PURE__*/_jsxs(_Fragment, {
+         children: [/*#__PURE__*/_jsx(Animated.View, {
+-          pointerEvents: "box-none",
+           style: [styles.title, {
+             // Avoid the title from going offscreen or overlapping buttons
+             maxWidth: headerTitleAlign === 'center' ? layout.width - ((leftButton ? headerBackButtonDisplayMode !== 'minimal' ? 80 : 32 : 16) + (rightButton || headerSearchBarOptions ? 16 : 0) + Math.max(insets.left, insets.right)) * 2 : layout.width - ((leftButton ? 52 : 16) + (rightButton || headerSearchBarOptions ? 52 : 16) + insets.left - insets.right)
+@@ -284,7 +287,9 @@ export function Header(props) {
+             marginStart: 4
+           } : {
+             marginHorizontal: 16
+-          }, titleContainerStyle],
++          }, titleContainerStyle, {
++            pointerEvents: "box-none"
++          }],
+           children: headerTitle({
+             children: title,
+             allowFontScaling: titleAllowFontScaling,
+@@ -293,10 +298,11 @@ export function Header(props) {
+             style: titleStyle
+           })
+         }), /*#__PURE__*/_jsxs(Animated.View, {
+-          pointerEvents: "box-none",
+           style: [styles.end, styles.expand, {
+             marginEnd: insets.right
+-          }, rightContainerStyle],
++          }, rightContainerStyle, {
++            pointerEvents: "box-none"
++          }],
+           children: [rightButton, headerSearchBarOptions ? /*#__PURE__*/_jsx(HeaderButton, {
+             tintColor: iconTintColor,
+             pressColor: headerPressColor,
+diff --git a/src/Header/Header.tsx b/src/Header/Header.tsx
+index bdde4ca03805e67095d3b1ebb6a97e9d7787cf79..fcb3547cec5f7a5c3920ec2aad8dd7708fb53096 100644
+--- a/src/Header/Header.tsx
++++ b/src/Header/Header.tsx
+@@ -306,46 +306,56 @@ export function Header(props: Props) {
+ 
+   return (
+     <Animated.View
+-      pointerEvents="box-none"
+-      style={[{ height, minHeight, maxHeight, opacity, transform }]}
++      style={[
++        { height, minHeight, maxHeight, opacity, transform },
++        { pointerEvents: 'box-none' },
++      ]}
+     >
+       <Animated.View
+-        pointerEvents="box-none"
+-        style={[StyleSheet.absoluteFill, backgroundContainerStyle]}
++        style={[
++          StyleSheet.absoluteFill,
++          backgroundContainerStyle,
++          { pointerEvents: 'box-none' },
++        ]}
+       >
+         {headerBackground ? (
+           headerBackground({ style: backgroundStyle })
+         ) : (
+           <HeaderBackground
+-            pointerEvents={
+-              // Allow touch through the header when background color is transparent
+-              headerTransparent &&
+-              (backgroundStyle.backgroundColor === 'transparent' ||
+-                Color(backgroundStyle.backgroundColor).alpha() === 0)
+-                ? 'none'
+-                : 'auto'
+-            }
+-            style={backgroundStyle}
++            style={[
++              backgroundStyle,
++              {
++                // Allow touch through the header when background color is transparent
++                pointerEvents:
++                  headerTransparent &&
++                  (backgroundStyle.backgroundColor === 'transparent' ||
++                    Color(backgroundStyle.backgroundColor).alpha() === 0)
++                    ? 'none'
++                    : 'auto',
++              },
++            ]}
+           />
+         )}
+       </Animated.View>
+-      <View pointerEvents="none" style={{ height: headerStatusBarHeight }} />
+       <View
+-        pointerEvents="box-none"
++        style={{ height: headerStatusBarHeight, pointerEvents: 'none' }}
++      />
++      <View
+         style={[
+           styles.content,
+           Platform.OS === 'ios' && frame.width >= IPAD_MINI_MEDIUM_WIDTH
+             ? styles.large
+             : null,
++          { pointerEvents: 'box-none' },
+         ]}
+       >
+         <Animated.View
+-          pointerEvents="box-none"
+           style={[
+             styles.start,
+             !searchBarVisible && headerTitleAlign === 'center' && styles.expand,
+             { marginStart: insets.left },
+             leftContainerStyle,
++            { pointerEvents: 'box-none' },
+           ]}
+         >
+           {leftButton}
+@@ -353,7 +363,6 @@ export function Header(props: Props) {
+         {Platform.OS === 'ios' || !searchBarVisible ? (
+           <>
+             <Animated.View
+-              pointerEvents="box-none"
+               style={[
+                 styles.title,
+                 {
+@@ -379,6 +388,7 @@ export function Header(props: Props) {
+                   ? { marginStart: 4 }
+                   : { marginHorizontal: 16 },
+                 titleContainerStyle,
++                { pointerEvents: 'box-none' },
+               ]}
+             >
+               {headerTitle({
+@@ -390,12 +400,12 @@ export function Header(props: Props) {
+               })}
+             </Animated.View>
+             <Animated.View
+-              pointerEvents="box-none"
+               style={[
+                 styles.end,
+                 styles.expand,
+                 { marginEnd: insets.right },
+                 rightContainerStyle,
++                { pointerEvents: 'box-none' },
+               ]}
+             >
+               {rightButton}

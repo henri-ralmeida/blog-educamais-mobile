@@ -25,5 +25,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
-  "private": true
+  "private": true,
+  "patchedDependencies": {
+    "@react-navigation/elements@2.9.35": "patches/@react-navigation%2Felements@2.9.35.patch"
+  }
 }
