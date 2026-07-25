@@ -1,0 +1,30 @@
+diff --git a/lib/module/components/ScreenStackHeaderConfig.js b/lib/module/components/ScreenStackHeaderConfig.js
+index cf15f36f25e51d95c896fbc3a31ccba90156a5b6..5c01b51c33835c6bb434ea54e4d93d3b55d51d3e 100644
+--- a/lib/module/components/ScreenStackHeaderConfig.js
++++ b/lib/module/components/ScreenStackHeaderConfig.js
+@@ -70,8 +70,9 @@ export const ScreenStackHeaderConfig = /*#__PURE__*/React.forwardRef((props, ref
+     onPressHeaderBarButtonItem: onPressHeaderBarButtonItem,
+     onPressHeaderBarButtonMenuItem: onPressHeaderBarButtonMenuItem,
+     ref: ref,
+-    style: styles.headerConfig,
+-    pointerEvents: "box-none",
++    style: [styles.headerConfig, {
++      pointerEvents: "box-none"
++    }],
+     synchronousShadowStateUpdatesEnabled: featureFlags.experiment.synchronousHeaderConfigUpdatesEnabled,
+     consumeTopInset: appliesTopInset,
+     legacyTopInsetBehavior: useLegacyBehavior
+diff --git a/src/components/ScreenStackHeaderConfig.tsx b/src/components/ScreenStackHeaderConfig.tsx
+index 421b3c2545426ae957271bd6515bcf827437541c..699730c05748ce94b490c14df7a1b84872a933e8 100644
+--- a/src/components/ScreenStackHeaderConfig.tsx
++++ b/src/components/ScreenStackHeaderConfig.tsx
+@@ -124,8 +124,7 @@ export const ScreenStackHeaderConfig = React.forwardRef<
+       onPressHeaderBarButtonItem={onPressHeaderBarButtonItem}
+       onPressHeaderBarButtonMenuItem={onPressHeaderBarButtonMenuItem}
+       ref={ref}
+-      style={styles.headerConfig}
+-      pointerEvents="box-none"
++      style={[styles.headerConfig, { pointerEvents: 'box-none' }]}
+       synchronousShadowStateUpdatesEnabled={
+         featureFlags.experiment.synchronousHeaderConfigUpdatesEnabled
+       }

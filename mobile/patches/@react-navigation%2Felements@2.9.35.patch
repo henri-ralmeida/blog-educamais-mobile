@@ -1,3 +1,6 @@
+diff --git a/node_modules/@react-navigation/elements/.bun-tag-d927e3a5042cd6 b/.bun-tag-d927e3a5042cd6
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/lib/module/Header/Header.js b/lib/module/Header/Header.js
 index 4daf3ccca581a33c1193df007f1ad87810dd846f..6b298ce4ca95a3213ba51027b59f83b5b4714765 100644
 --- a/lib/module/Header/Header.js
@@ -87,6 +90,21 @@ index 4daf3ccca581a33c1193df007f1ad87810dd846f..6b298ce4ca95a3213ba51027b59f83b5
            children: [rightButton, headerSearchBarOptions ? /*#__PURE__*/_jsx(HeaderButton, {
              tintColor: iconTintColor,
              pressColor: headerPressColor,
+diff --git a/lib/module/Screen.js b/lib/module/Screen.js
+index e4ff1748799cfd5e6f52ec7a593d522be0164916..ba78d5f62ee89cc850a01e4b30f581f2cace738f 100644
+--- a/lib/module/Screen.js
++++ b/lib/module/Screen.js
+@@ -52,7 +52,9 @@ export function Screen(props) {
+         }] : null],
+         children: /*#__PURE__*/_jsx(View, {
+           ref: headerRef,
+-          pointerEvents: "box-none",
++          style: {
++            pointerEvents: "box-none"
++          },
+           onLayout: e => {
+             const {
+               height
 diff --git a/src/Header/Header.tsx b/src/Header/Header.tsx
 index bdde4ca03805e67095d3b1ebb6a97e9d7787cf79..fcb3547cec5f7a5c3920ec2aad8dd7708fb53096 100644
 --- a/src/Header/Header.tsx
@@ -194,3 +212,16 @@ index bdde4ca03805e67095d3b1ebb6a97e9d7787cf79..fcb3547cec5f7a5c3920ec2aad8dd770
                ]}
              >
                {rightButton}
+diff --git a/src/Screen.tsx b/src/Screen.tsx
+index 68455b11e6682f3b9d76e4366d450a0cfc67202f..4fee897647c5e55869868ab474f2ae43720d9125 100644
+--- a/src/Screen.tsx
++++ b/src/Screen.tsx
+@@ -90,7 +90,7 @@ export function Screen(props: Props) {
+           >
+             <View
+               ref={headerRef}
+-              pointerEvents="box-none"
++              style={{ pointerEvents: 'box-none' }}
+               onLayout={(e) => {
+                 const { height } = e.nativeEvent.layout;
+ 
