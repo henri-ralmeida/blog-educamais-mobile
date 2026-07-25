@@ -140,7 +140,14 @@ export default function PostListScreen({ navigation }) {
       data={visiblePosts}
       keyExtractor={(item) => String(item.id)}
       ListHeaderComponent={
-        <View style={styles.searchBarWrapper}>
+        <View style={styles.listHeader}>
+          <View style={styles.intro}>
+            <Text style={styles.eyebrow}>CONTEÚDO PARA APRENDER</Text>
+            <Text style={styles.introTitle}>Ideias que continuam com você.</Text>
+            <Text style={styles.introBody}>
+              Encontre leituras preparadas por professores para ampliar o que você aprende.
+            </Text>
+          </View>
           <SearchBar value={searchTerm} onChangeText={setSearchTerm} />
         </View>
       }
@@ -190,18 +197,41 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   listContent: {
-    paddingTop: spacing.lg,
+    paddingTop: 0,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xl,
     flexGrow: 1,
   },
   emptyListContent: {
     flexGrow: 1,
+  },
+  listHeader: {},
+  intro: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  eyebrow: {
+    ...typography.label,
+    color: colors.accent,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    marginBottom: spacing.xs,
+  },
+  introTitle: {
+    ...typography.display,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  introBody: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
-    paddingHorizontal: spacing['3xl'],
+    paddingHorizontal: spacing.xl,
   },
   errorText: {
     ...typography.body,
@@ -212,22 +242,20 @@ const styles = StyleSheet.create({
   retryButton: {
     minHeight: 44,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.accent,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   retryButtonText: {
     ...typography.button,
     color: colors.onAccent,
   },
   buttonPressed: {
-    opacity: 0.72,
+    opacity: 0.78,
   },
   footerLoader: {
     marginVertical: spacing.lg,
-  },
-  searchBarWrapper: {
-    paddingBottom: spacing.xl,
   },
 });

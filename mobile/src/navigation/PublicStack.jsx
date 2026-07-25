@@ -11,22 +11,31 @@ export default function PublicStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerTitleStyle: typography.display,
-        headerTintColor: colors.textPrimary,
+        headerTitleStyle: {
+          ...typography.heading,
+          color: colors.textPrimary,
+        },
+        headerTintColor: colors.accent,
+        headerTitleAlign: 'center',
+        headerShadowVisible: false,
+        headerStyle: {
+          backgroundColor: colors.background,
+        },
       }}
     >
       <Stack.Screen
         name="PostList"
         component={PostListScreen}
         options={({ navigation }) => ({
-          title: 'Posts',
+          title: 'Educa+',
           headerRight: () => (
             <Pressable
-              style={({ pressed }) => [styles.loginButton, pressed && styles.buttonPressed]}
+              style={({ pressed }) => [styles.loginButton, pressed && styles.loginButtonPressed]}
               onPress={() => navigation.navigate('Login')}
               accessibilityRole="button"
               accessibilityLabel="Entrar na área do professor"
-              hitSlop={spacing.sm}
+              accessibilityHint="Abre a tela de login do professor"
+              hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
             >
               <Text style={styles.loginButtonText}>Entrar</Text>
             </Pressable>
@@ -49,17 +58,22 @@ export default function PublicStack() {
 
 const styles = StyleSheet.create({
   loginButton: {
-    minHeight: 44,
+    minHeight: 40,
     minWidth: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: 10,
+    backgroundColor: colors.accentSoft,
+    marginRight: spacing.sm,
+  },
+  loginButtonPressed: {
+    opacity: 0.78,
   },
   loginButtonText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  buttonPressed: {
-    opacity: 0.72,
+    ...typography.label,
+    color: colors.accent,
+    fontWeight: '600',
   },
 });

@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../theme/tokens';
 
 const DESCRIPTION_LIMIT = 150;
@@ -18,14 +19,20 @@ export default function PostCard({ post, onPress }) {
       accessibilityLabel={`Ler post: ${post.title}`}
       accessibilityHint="Abre o conteúdo completo do post"
     >
+      <View style={styles.authorRow}>
+        <Ionicons name="ribbon" size={12} color={colors.textMuted} style={styles.authorIcon} />
+        <Text style={styles.author} numberOfLines={1}>
+          {post.author}
+        </Text>
+      </View>
       <Text style={styles.title} numberOfLines={2}>
         {post.title}
       </Text>
-      <Text style={styles.author} numberOfLines={1}>
-        {post.author}
-      </Text>
       <Text style={styles.description} numberOfLines={3}>
         {buildDescription(post.content)}
+      </Text>
+      <Text style={styles.cta}>
+        Continuar leitura
       </Text>
     </Pressable>
   );
@@ -34,27 +41,44 @@ export default function PostCard({ post, onPress }) {
 const styles = StyleSheet.create({
   card: {
     minHeight: 44,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: 8,
+    backgroundColor: colors.background,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   cardPressed: {
-    opacity: 0.72,
+    opacity: 0.86,
+    transform: [{ scale: 0.995 }],
   },
-  title: {
-    ...typography.heading,
-    color: colors.accent,
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  authorIcon: {
+    marginRight: 6,
   },
   author: {
     ...typography.label,
     color: colors.textMuted,
-    marginTop: spacing.xs,
+    fontWeight: '500',
+  },
+  title: {
+    ...typography.heading,
+    color: colors.textPrimary,
   },
   description: {
     ...typography.body,
     color: colors.textSecondary,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  cta: {
+    ...typography.label,
+    color: colors.accent,
+    fontWeight: '600',
+    marginTop: spacing.md,
   },
 });

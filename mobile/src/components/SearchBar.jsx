@@ -29,19 +29,20 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 44,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
+    minHeight: 46,
+    backgroundColor: colors.background,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.transparent,
-    marginHorizontal: spacing.md,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
     paddingHorizontal: spacing.md,
   },
   containerFocused: {
     borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
   },
   icon: {
-    marginRight: spacing.xs,
+    marginRight: spacing.sm,
   },
   input: {
     flex: 1,
