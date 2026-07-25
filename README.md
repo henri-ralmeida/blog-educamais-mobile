@@ -13,22 +13,35 @@
 
 ---
 
-## Setup do backend (pré-requisito)
+## Execução completa com Docker
 
-O app mobile consome o backend REST do repositório irmão `blogeducamais-techchallenge-fase03` (Node.js + Express + Prisma + PostgreSQL). Sem esse backend rodando, **nenhuma tela que depende de rede funciona** — nem a área pública de posts.
+Banco, backend e versão web do app mobile sobem juntos:
 
 ```bash
-# na raiz do repositório blogeducamais-techchallenge-fase03
-docker compose up -d       # ou "docker compose up --build" na primeira execução
+# na raiz deste repositório
+docker compose up --build
 ```
 
-A API fica disponível em `http://localhost:3000`.
+Serviços disponíveis:
 
-Para parar os serviços: `docker compose down` (ou `docker compose down -v` para remover também o volume do banco).
+- App web: `http://localhost:8081`
+- API: `http://localhost:3000`
+- Health check: `http://localhost:3000/health`
+- PostgreSQL: `localhost:55432`
+
+O serviço mobile executa Expo Web com Fast Refresh. O código-fonte fica montado no container; alterações salvas em `mobile/` são recarregadas no navegador. A variável `EXPO_PUBLIC_API_URL` aponta o bundle web para `http://localhost:3000`.
+
+Para parar sem apagar dados do UAT:
+
+```bash
+docker compose down
+```
+
+Não use `docker compose down -v` durante o UAT: `-v` remove o volume e apaga dados do PostgreSQL.
 
 ---
 
-## Setup do app mobile
+## Setup do app mobile fora do Docker
 
 ```bash
 # 1. Clonar o repositório
