@@ -14,9 +14,8 @@ const createPostSchema = z.object({
 });
 
 const updatePostSchema = z.object({
-  title: textoObrigatorio("title").optional(),
-  content: textoObrigatorio("content").optional(),
-  author: textoObrigatorio("author").optional(),
+  title: textoObrigatorio("title"),
+  content: textoObrigatorio("content"),
 });
 
 module.exports = { createPostSchema, updatePostSchema };
