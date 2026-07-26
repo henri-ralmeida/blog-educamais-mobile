@@ -7,6 +7,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, Pressable }
 import { Controller, useForm } from 'react-hook-form';
 import { professoresService } from '../../services/professoresService';
 import { colors, spacing, typography } from '../../theme/tokens';
+import { emailRule } from '../../utils/validators';
 
 export default function ProfessorFormScreen({ route, navigation }) {
   const id = route.params?.id;
@@ -76,10 +77,7 @@ export default function ProfessorFormScreen({ route, navigation }) {
       <Controller
         control={control}
         name="email"
-        rules={{
-          required: 'Email obrigatório',
-          pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Email inválido' },
-        }}
+        rules={emailRule}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}

@@ -5,6 +5,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, spacing, typography } from '../../theme/tokens';
+import { emailRule } from '../../utils/validators';
 
 const MIN_SENHA_CARACTERES = 6;
 const MAX_SENHA_BYTES = 72;
@@ -55,10 +56,7 @@ export default function LoginScreen() {
       <Controller
         control={control}
         name="email"
-        rules={{
-          required: 'Email obrigatório',
-          pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Email inválido' },
-        }}
+        rules={emailRule}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}
