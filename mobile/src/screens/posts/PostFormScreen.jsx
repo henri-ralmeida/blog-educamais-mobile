@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
+import FieldError from '../../components/FieldError';
 import { useAuth } from '../../contexts/AuthContext';
 import { postsService } from '../../services/postsService';
+import { describeRequestError } from '../../utils/requestError';
 import { colors, spacing, typography } from '../../theme/tokens';
 
 function validarTextoObrigatorio(rotulo) {
@@ -16,11 +18,19 @@ export default function PostFormScreen({ route, navigation }) {
   const id = route.params?.id;
   const isEditMode = id !== undefined && id !== null;
   const { user } = useAuth();
+  // user.nome era desreferenciado sem guarda; hoje só não quebra porque o
+  // RootNavigator troca a árvore inteira ao deslogar.
+  const nomeProfessor = user?.nome ?? '';
 
   const [loadingPost, setLoadingPost] = useState(isEditMode);
   const [loadError, setLoadError] = useState(null);
   const [loadKey, setLoadKey] = useState(0);
   const [submitError, setSubmitError] = useState(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+  }, []);
 
   const {
     control,
@@ -28,7 +38,7 @@ export default function PostFormScreen({ route, navigation }) {
     reset,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: { title: '', content: '', author: user.nome },
+    defaultValues: { title: '', content: '', author: nomeProfessor },
   });
 
   // Modo edição: busca dados atuais do post e popula o formulário via reset().
@@ -44,7 +54,9 @@ export default function PostFormScreen({ route, navigation }) {
         reset({
           title: data.title ?? '',
           content: data.content ?? '',
-          author: user.nome,
+          // Na edição o backend não altera a autoria: mostrar o nome da sessão
+          // fazia a tela mentir sobre quem consta como autor do post.
+          author: data.author ?? '',
         });
       })
       .catch((err) => {
@@ -57,24 +69,22 @@ export default function PostFormScreen({ route, navigation }) {
     return () => {
       cancelled = true;
     };
-  }, [id, isEditMode, loadKey, reset, user.nome]);
+  }, [id, isEditMode, loadKey, reset]);
 
   function onSubmit(data) {
     setSubmitError(null);
-    // O campo visual reflete a sessão; o backend vincula a autoria real ao JWT.
-    const payload = { title: data.title, content: data.content, author: data.author };
+    // A autoria é sempre definida pelo backend a partir do JWT; enviar "author"
+    // era campo morto no update e exigência inútil no create.
+    const payload = { title: data.title, content: data.content };
     const request = isEditMode ? postsService.update(id, payload) : postsService.create(payload);
     return request
       .then(() => {
         navigation.goBack();
       })
       .catch((err) => {
-        const status = err?.response?.status;
-        if (status >= 400 && status < 500) {
-          setSubmitError('Dados inválidos. Verifique os campos e tente novamente.');
-        } else {
-          setSubmitError('Não foi possível salvar o post. Verifique sua conexão e tente novamente.');
-        }
+        // A faixa 4xx genérica engolia 401/403 (sessão revogada) e 404 (post
+        // removido), mandando o usuário revisar campos que estavam corretos.
+        if (isMountedRef.current) setSubmitError(describeRequestError(err).message);
       });
   }
 
@@ -129,7 +139,7 @@ export default function PostFormScreen({ route, navigation }) {
           />
         )}
       />
-      {errors.title && <Text style={styles.errorText}>{errors.title.message}</Text>}
+      <FieldError>{errors.title?.message}</FieldError>
 
       <Text style={[styles.label, styles.fieldSpacing]}>Conteúdo</Text>
       <Controller
@@ -152,7 +162,7 @@ export default function PostFormScreen({ route, navigation }) {
           />
         )}
       />
-      {errors.content && <Text style={styles.errorText}>{errors.content.message}</Text>}
+      <FieldError>{errors.content?.message}</FieldError>
 
       <Text style={[styles.label, styles.fieldSpacing]}>Autor</Text>
       <Controller
@@ -172,9 +182,9 @@ export default function PostFormScreen({ route, navigation }) {
           />
         )}
       />
-      {errors.author && <Text style={styles.errorText}>{errors.author.message}</Text>}
+      <FieldError>{errors.author?.message}</FieldError>
 
-      {submitError && <Text style={[styles.errorText, styles.submitError]}>{submitError}</Text>}
+      <FieldError style={styles.submitError}>{submitError}</FieldError>
 
       <Pressable
         style={({ pressed }) => [

@@ -5,24 +5,22 @@ import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, spacing, typography } from '../../theme/tokens';
-import { emailRule } from '../../utils/validators';
-
-const MIN_SENHA_CARACTERES = 6;
-const MAX_SENHA_BYTES = 72;
-
-function utf8ByteLength(value) {
-  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(value).length;
-  return unescape(encodeURIComponent(value)).length;
-}
+import { emailRule, senhaRules } from '../../utils/validators';
 
 function getLoginErrorMessage(error) {
   const status = error?.response?.status;
-  if (status === 400) return 'Confira os campos informados e tente novamente.';
-  if (status === 401) return 'Email ou senha inválidos. Verifique suas credenciais e tente novamente.';
-  if (status === 429) return 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.';
-  if (status >= 500) return 'O servidor está indisponível no momento. Tente novamente mais tarde.';
-  if (!error?.response) return 'Não foi possível conectar ao servidor. Verifique sua conexão.';
-  return 'Não foi possível entrar. Tente novamente.';
+  if (typeof status === 'number') {
+    if (status === 400) return 'Confira os campos informados e tente novamente.';
+    if (status === 401) return 'Email ou senha inválidos. Verifique suas credenciais e tente novamente.';
+    if (status === 429) return 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.';
+    if (status >= 500) return 'O servidor está indisponível no momento. Tente novamente mais tarde.';
+    return 'Não foi possível entrar. Tente novamente.';
+  }
+  // Só é falha de rede quando a requisição chegou a sair. Erro de domínio
+  // (sessão inválida vinda de um 200) caía aqui e mentia "sem conexão",
+  // deixando o login impossível sem nenhuma pista do motivo real.
+  if (error?.request) return 'Não foi possível conectar ao servidor. Verifique sua conexão.';
+  return error?.message ?? 'Não foi possível entrar. Tente novamente.';
 }
 
 export default function LoginScreen() {
@@ -37,14 +35,16 @@ export default function LoginScreen() {
   async function onSubmit(data) {
     setLoginError(null);
     try {
-      await login(data.email, data.senha);
+      await login(data.email.trim(), data.senha);
     } catch (err) {
       setLoginError(getLoginErrorMessage(err));
     }
   }
 
   return (
-    <View style={styles.container} accessible accessibilityLabel="Tela de login">
+    // O container tinha `accessible`, o que colapsava o formulário inteiro em um
+    // único elemento e tornava os campos e o botão inalcançáveis pelo VoiceOver.
+    <View style={styles.container}>
       <Text
         style={styles.heading}
         accessibilityRole="header"
@@ -68,7 +68,12 @@ export default function LoginScreen() {
             accessibilityLabel="Email"
             accessibilityLabelledBy="email-label"
             onBlur={onBlur}
-            onChangeText={onChange}
+            onChangeText={(text) => {
+              // O erro de login continuava anunciado em live region assertiva
+              // enquanto o usuário já estava corrigindo os campos.
+              if (loginError) setLoginError(null);
+              onChange(text);
+            }}
             value={value}
           />
         )}
@@ -87,18 +92,7 @@ export default function LoginScreen() {
       <Controller
         control={control}
         name="senha"
-        rules={{
-          required: 'Senha obrigatória',
-          validate: {
-            apenasEspacos: (v) => !/^\s+$/u.test(v) || 'Senha não pode conter apenas espaços',
-            minimoCaracteres: (v) =>
-              [...v].length >= MIN_SENHA_CARACTERES ||
-              `Senha deve ter ao menos ${MIN_SENHA_CARACTERES} caracteres`,
-            maximoBytes: (v) =>
-              utf8ByteLength(v) <= MAX_SENHA_BYTES ||
-              `Senha deve ter no máximo ${MAX_SENHA_BYTES} bytes em UTF-8`,
-          },
-        }}
+        rules={senhaRules()}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}
