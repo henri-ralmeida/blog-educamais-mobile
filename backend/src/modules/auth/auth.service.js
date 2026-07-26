@@ -3,9 +3,9 @@ const { getConfig } = require("../../config/env");
 const bcrypt = require("bcryptjs");
 const prisma = require("../../config/prisma");
 
-function omitSenha(professor) {
+function omitCredenciais(professor) {
   if (!professor) return professor;
-  const { senha: _omit, ...rest } = professor;
+  const { senha: _senha, tokenVersion: _tokenVersion, ...rest } = professor;
   return rest;
 }
 
@@ -24,10 +24,10 @@ async function login(email, senha) {
 
   if (!professor || !senhaValida) return null;
 
-  const professorSeguro = omitSenha(professor);
+  const professorSeguro = omitCredenciais(professor);
   const { jwtSecret, jwtExpiresIn } = getConfig();
   const token = jwt.sign(
-    { role: "teacher" },
+    { role: "teacher", tokenVersion: professor.tokenVersion ?? 1 },
     jwtSecret,
     {
       algorithm: "HS256",

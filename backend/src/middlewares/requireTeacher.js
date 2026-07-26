@@ -43,6 +43,7 @@ async function requireTeacher(req, res, next) {
         id: true,
         nome: true,
         email: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -54,9 +55,16 @@ async function requireTeacher(req, res, next) {
       });
     }
 
+    if (payload.tokenVersion !== professor.tokenVersion) {
+      return res.status(401).json({
+        message: "Unauthorized: session revoked",
+      });
+    }
+
+    const { tokenVersion: _tokenVersion, ...professorSeguro } = professor;
     req.auth = {
       role: "teacher",
-      professor,
+      professor: professorSeguro,
     };
     return next();
   } catch (error) {

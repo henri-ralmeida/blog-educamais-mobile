@@ -3,9 +3,9 @@ const prisma = require("../../config/prisma");
 
 const SALT_ROUNDS = 10;
 
-function omitSenha(professor) {
+function omitCredenciais(professor) {
   if (!professor) return professor;
-  const { senha: _omit, ...rest } = professor;
+  const { senha: _senha, tokenVersion: _tokenVersion, ...rest } = professor;
   return rest;
 }
 
@@ -14,7 +14,7 @@ async function createProfessor(data) {
   const professor = await prisma.professor.create({
     data: { ...data, email: data.email.trim().toLowerCase(), senha: senhaHash },
   });
-  return omitSenha(professor);
+  return omitCredenciais(professor);
 }
 
 async function listProfessores({ page = 1, limit = 10 } = {}) {
@@ -32,7 +32,7 @@ async function listProfessores({ page = 1, limit = 10 } = {}) {
   ]);
 
   return {
-    data: data.map(omitSenha),
+    data: data.map(omitCredenciais),
     total,
     page: currentPage,
     limit: currentLimit,
@@ -48,12 +48,13 @@ async function updateProfessor(id, data) {
     delete payload.senha;
   } else if (payload.senha !== undefined) {
     payload.senha = await bcrypt.hash(payload.senha, SALT_ROUNDS);
+    payload.tokenVersion = { increment: 1 };
   }
   const professor = await prisma.professor.update({
     where: { id },
     data: payload,
   });
-  return omitSenha(professor);
+  return omitCredenciais(professor);
 }
 
 async function deleteProfessor(id) {

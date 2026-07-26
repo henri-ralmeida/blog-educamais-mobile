@@ -16,4 +16,8 @@ async function login(req, res) {
   }
 }
 
-module.exports = { login };
+function session(req, res) {
+  return res.status(200).json({ professor: req.auth.professor });
+}
+
+module.exports = { login, session };
