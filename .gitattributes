@@ -1,0 +1,11 @@
+# Um .env copiado do .env.example com CRLF entrega valores terminados em \r
+# dentro do container Linux: o CORS_ORIGIN vira "http://localhost:8081\r" e toda
+# requisicao do app falha sem erro visivel, e a senha do seed nasce com \r no hash.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.ico binary

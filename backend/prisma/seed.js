@@ -19,6 +19,15 @@ function requireInitialValue(env, name, preserveWhitespace = false) {
     throw new Error(`${name} é obrigatória para executar o seed`);
   }
 
+  // Um .env salvo com CRLF entrega a senha terminada em carriage return. Com
+  // preserveWhitespace esse caractere entrava no hash e o login falhava para
+  // sempre com a senha correta, sem que o seed idempotente corrigisse depois.
+  const QUEBRAS_DE_LINHA = [String.fromCharCode(13), String.fromCharCode(10)];
+  if (QUEBRAS_DE_LINHA.some((caractere) => value.includes(caractere))) {
+    throw new Error(
+      `${name} contem quebra de linha (arquivo .env salvo com CRLF?). Regrave o .env com fim de linha LF.`,
+    );
+  }
   return preserveWhitespace ? value : value.trim();
 }
 

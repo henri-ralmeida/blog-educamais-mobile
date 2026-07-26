@@ -5,10 +5,13 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # Sem senha explicita o banco subia com "postgres" e ficava publicado na
+      # rede com credencial default, permitindo ler PII de aluno por fora da API.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
       POSTGRES_DB: ${POSTGRES_DB:-blogdb}
     ports:
-      - "55432:5432"
+      # Publicado apenas na maquina local (era 0.0.0.0), para inspecao via psql.
+      - "127.0.0.1:55432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -28,14 +31,35 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-blogdb}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-blogdb}?schema=public
       JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET com pelo menos 32 caracteres}
       RATE_LIMIT_SECRET: ${RATE_LIMIT_SECRET:?Defina RATE_LIMIT_SECRET com pelo menos 32 caracteres}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       CORS_ORIGIN: ${CORS_ORIGIN:?Defina CORS_ORIGIN sem wildcard}
+      # Atras do gateway do Docker todo request chega com o IP do proxy; sem esta
+      # variavel o limitador de login por IP se comporta como limite global.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     ports:
       - "3000:3000"
-    command: sh -c "npx prisma migrate deploy && node src/server.js"
+    # O comando vem do CMD do Dockerfile; duplicar aqui so criava duas fontes de
+    # verdade para a mesma inicializacao.
+
+  # Bootstrap do primeiro professor. Sem ele um ambiente limpo nao tem nenhuma
+  # credencial e a area administrativa fica inalcancavel.
+  # Uso: docker compose --profile bootstrap run --rm seed
+  seed:
+    build:
+      context: ./backend
+    profiles: ["bootstrap"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-blogdb}?schema=public
+      INITIAL_TEACHER_NAME: ${INITIAL_TEACHER_NAME:?Defina INITIAL_TEACHER_NAME no .env}
+      INITIAL_TEACHER_EMAIL: ${INITIAL_TEACHER_EMAIL:?Defina INITIAL_TEACHER_EMAIL no .env}
+      INITIAL_TEACHER_PASSWORD: ${INITIAL_TEACHER_PASSWORD:?Defina INITIAL_TEACHER_PASSWORD no .env}
+    command: npx prisma db seed
 
   mobile:
     build:
@@ -46,13 +70,15 @@ services:
       - backend
     environment:
       EXPO_PUBLIC_API_URL: http://localhost:3000
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
     ports:
       - "8081:8081"
     volumes:
       - ./mobile:/app
       - mobile_node_modules:/app/node_modules
+    # Fast Refresh NAO funciona por aqui quando o repositorio esta no filesystem
+    # do Windows: o bind mount nao entrega eventos de inotify e o watcher do
+    # Metro nao usa polling. Para desenvolver com hot reload, rode o Expo no
+    # host com "bun install && bunx expo start --web".
     command: bunx expo start --web --host lan
 
 volumes:
