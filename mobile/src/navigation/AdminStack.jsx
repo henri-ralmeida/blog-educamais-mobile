@@ -1,4 +1,5 @@
-import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AdminHomeScreen from '../screens/admin/AdminHomeScreen';
@@ -17,24 +18,48 @@ const Stack = createNativeStackNavigator();
 // dentro do corpo de um componente React, nunca dentro de uma função de config de rota.
 function LogoutButton() {
   const { logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  async function handleLogout() {
-    try {
-      await logout();
-    } catch (err) {
-      Alert.alert('Erro', err.message);
-    }
+  function handleLogout() {
+    if (isLoggingOut) return;
+    Alert.alert(
+      'Sair',
+      'Deseja encerrar a sessão administrativa?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoggingOut(true);
+            try {
+              await logout();
+            } catch (err) {
+              Alert.alert('Erro', err.message);
+            } finally {
+              setIsLoggingOut(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
     <Pressable
       style={({ pressed }) => [styles.headerAction, pressed && styles.headerActionPressed]}
       onPress={handleLogout}
+      disabled={isLoggingOut}
       accessibilityRole="button"
-      accessibilityLabel="Sair da área administrativa"
+      accessibilityLabel={isLoggingOut ? 'Encerrando sessão administrativa' : 'Sair da área administrativa'}
+      accessibilityState={{ disabled: isLoggingOut, busy: isLoggingOut }}
       hitSlop={spacing.sm}
     >
-      <Text style={styles.logoutText}>Sair</Text>
+      {isLoggingOut ? (
+        <ActivityIndicator color={colors.textSecondary} accessibilityLabel="Encerrando sessão" />
+      ) : (
+        <Text style={styles.logoutText}>Sair</Text>
+      )}
     </Pressable>
   );
 }
