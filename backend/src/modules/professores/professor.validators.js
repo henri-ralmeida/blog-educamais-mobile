@@ -1,5 +1,8 @@
 const { z } = require("zod");
 
+const MIN_SENHA_CARACTERES = 6;
+const MAX_SENHA_BYTES = 72;
+
 function validarSenhaLiteral(senha, contexto, permitirVazia = false) {
   if (permitirVazia && senha === "") return;
 
@@ -11,13 +14,23 @@ function validarSenhaLiteral(senha, contexto, permitirVazia = false) {
     return;
   }
 
-  if (senha.length < 6) {
+  if ([...senha].length < MIN_SENHA_CARACTERES) {
     contexto.addIssue({
       code: "too_small",
-      minimum: 6,
+      minimum: MIN_SENHA_CARACTERES,
       origin: "string",
       inclusive: true,
-      message: "senha deve ter ao menos 6 caracteres",
+      message: `senha deve ter ao menos ${MIN_SENHA_CARACTERES} caracteres`,
+    });
+  }
+
+  if (Buffer.byteLength(senha, "utf8") > MAX_SENHA_BYTES) {
+    contexto.addIssue({
+      code: "too_big",
+      maximum: MAX_SENHA_BYTES,
+      origin: "string",
+      inclusive: true,
+      message: `senha deve ter no máximo ${MAX_SENHA_BYTES} bytes em UTF-8`,
     });
   }
 }

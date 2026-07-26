@@ -1,5 +1,53 @@
 const alunoService = require("./aluno.service");
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_PAGE = 1_000_000;
+const MAX_LIMIT = 100;
+
+function parsePaginationValue(value, { name, defaultValue, maximum }) {
+  if (value === undefined) return { value: defaultValue };
+
+  const parsed = typeof value === "string" || typeof value === "number"
+    ? Number(value)
+    : Number.NaN;
+
+  if (
+    (typeof value === "string" && value.trim() === "")
+    || !Number.isFinite(parsed)
+    || !Number.isInteger(parsed)
+    || parsed < 1
+    || parsed > maximum
+  ) {
+    return {
+      issue: {
+        path: name,
+        message: `${name} deve ser um número inteiro entre 1 e ${maximum}`,
+      },
+    };
+  }
+
+  return { value: parsed };
+}
+
+function parsePagination(query) {
+  const page = parsePaginationValue(query.page, {
+    name: "page",
+    defaultValue: DEFAULT_PAGE,
+    maximum: MAX_PAGE,
+  });
+  const limit = parsePaginationValue(query.limit, {
+    name: "limit",
+    defaultValue: DEFAULT_LIMIT,
+    maximum: MAX_LIMIT,
+  });
+  const issues = [page.issue, limit.issue].filter(Boolean);
+
+  return issues.length > 0
+    ? { issues }
+    : { page: page.value, limit: limit.value };
+}
+
 async function create(req, res) {
   try {
     const aluno = await alunoService.createAluno(req.body);
@@ -15,9 +63,14 @@ async function create(req, res) {
 
 async function list(req, res) {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
-    const result = await alunoService.listAlunos({ page, limit });
+    const parsed = parsePagination(req.query);
+    if (parsed.issues) {
+      return res.status(400).json({
+        message: "Validation error",
+        issues: parsed.issues,
+      });
+    }
+    const result = await alunoService.listAlunos(parsed);
     return res.json(result);
   } catch (error) {
     console.error(error);

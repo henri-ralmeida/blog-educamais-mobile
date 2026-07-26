@@ -1,4 +1,12 @@
 const DEFAULT_JWT_EXPIRES_IN = "8h";
+const MAXIMUM_JWT_DURATION_SECONDS = 365 * 24 * 60 * 60;
+const JWT_EXPIRES_IN_PATTERN = /^([1-9]\d*)([smhd])$/;
+const JWT_DURATION_FACTORS = Object.freeze({
+  s: 1,
+  m: 60,
+  h: 60 * 60,
+  d: 24 * 60 * 60,
+});
 const MINIMUM_JWT_SECRET_LENGTH = 32;
 const ORIGIN_PATTERN = /^(?:https?|exp):\/\/[^/\s]+$/i;
 
@@ -8,6 +16,34 @@ function requireEnvironmentValue(env, name) {
     throw new Error(`${name} é obrigatório`);
   }
   return value;
+}
+
+function parseJwtExpiresIn(value) {
+  if (value === undefined || value.trim() === "") {
+    return DEFAULT_JWT_EXPIRES_IN;
+  }
+
+  const trimmed = value.trim();
+  const match = trimmed.match(JWT_EXPIRES_IN_PATTERN);
+  if (!match) {
+    throw new Error(
+      "JWT_EXPIRES_IN deve ser um número positivo com unidade explícita (s, m, h, d). Exemplos válidos: \"8h\", \"30m\", \"7d\", \"3600s\"."
+    );
+  }
+
+  const magnitude = Number(match[1]);
+  if (!Number.isSafeInteger(magnitude)) {
+    throw new Error("JWT_EXPIRES_IN com magnitude muito grande");
+  }
+
+  const durationSeconds = magnitude * JWT_DURATION_FACTORS[match[2]];
+  if (durationSeconds > MAXIMUM_JWT_DURATION_SECONDS) {
+    throw new Error(
+      `JWT_EXPIRES_IN não pode exceder ${MAXIMUM_JWT_DURATION_SECONDS} segundos (1 ano).`
+    );
+  }
+
+  return trimmed;
 }
 
 function parseCorsOrigins(value) {
@@ -40,7 +76,7 @@ function loadConfig(env = process.env) {
   return Object.freeze({
     nodeEnv: env.NODE_ENV?.trim() || "development",
     jwtSecret,
-    jwtExpiresIn: env.JWT_EXPIRES_IN?.trim() || DEFAULT_JWT_EXPIRES_IN,
+    jwtExpiresIn: parseJwtExpiresIn(env.JWT_EXPIRES_IN),
     corsOrigins: Object.freeze(parseCorsOrigins(corsOrigin)),
   });
 }
@@ -54,7 +90,9 @@ function getConfig() {
 
 module.exports = {
   DEFAULT_JWT_EXPIRES_IN,
+  MAXIMUM_JWT_DURATION_SECONDS,
   MINIMUM_JWT_SECRET_LENGTH,
   getConfig,
   loadConfig,
+  parseJwtExpiresIn,
 };
