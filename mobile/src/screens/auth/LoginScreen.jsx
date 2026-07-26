@@ -57,7 +57,10 @@ export default function LoginScreen() {
       <Controller
         control={control}
         name="senha"
-        rules={{ required: 'Senha obrigatória' }}
+        rules={{
+          required: 'Senha obrigatória',
+          validate: (v) => !/^\s+$/u.test(v) || 'Senha não pode conter apenas espaços',
+        }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}

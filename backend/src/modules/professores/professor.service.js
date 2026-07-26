@@ -44,7 +44,9 @@ async function updateProfessor(id, data) {
   if (payload.email) {
     payload.email = payload.email.trim().toLowerCase();
   }
-  if (payload.senha) {
+  if (payload.senha === "") {
+    delete payload.senha;
+  } else if (payload.senha !== undefined) {
     payload.senha = await bcrypt.hash(payload.senha, SALT_ROUNDS);
   }
   const professor = await prisma.professor.update({

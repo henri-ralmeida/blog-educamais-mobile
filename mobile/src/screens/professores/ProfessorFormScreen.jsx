@@ -28,12 +28,11 @@ export default function ProfessorFormScreen({ route, navigation }) {
 
   function onSubmit(data) {
     setSubmitError(null);
-    // Payload nunca envia senha vazia — o schema de update rejeita string
-    // vazia por min(6), e uma PUT com senha vazia poderia sinalizar troca não intencional.
+    // Na edição, somente a string realmente vazia mantém a senha atual. Qualquer senha
+    // válida segue no payload sem trim nem outra normalização.
     const payload = { nome: data.nome, email: data.email };
-    const trimmedSenha = data.senha ? data.senha.trim() : '';
-    if (trimmedSenha) {
-      payload.senha = trimmedSenha;
+    if (!isEditMode || data.senha !== '') {
+      payload.senha = data.senha;
     }
     const request = isEditMode
       ? professoresService.update(id, payload)
@@ -105,12 +104,21 @@ export default function ProfessorFormScreen({ route, navigation }) {
         rules={
           isEditMode
             ? {
-                validate: (v) =>
-                  !v || v.length >= 6 || 'Senha deve ter ao menos 6 caracteres',
+                validate: {
+                  notBlank: (v) =>
+                    v === '' || !/^\s+$/u.test(v) || 'Senha não pode conter apenas espaços',
+                  minLength: (v) =>
+                    v === '' || v.length >= 6 || 'Senha deve ter ao menos 6 caracteres',
+                },
               }
             : {
                 required: 'Senha obrigatória',
-                minLength: { value: 6, message: 'Senha deve ter ao menos 6 caracteres' },
+                validate: {
+                  notBlank: (v) =>
+                    !/^\s+$/u.test(v) || 'Senha não pode conter apenas espaços',
+                  minLength: (v) =>
+                    v.length >= 6 || 'Senha deve ter ao menos 6 caracteres',
+                },
               }
         }
         render={({ field: { onChange, onBlur, value } }) => (
