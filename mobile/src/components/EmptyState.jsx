@@ -4,11 +4,17 @@ import { colors, spacing, typography } from '../theme/tokens';
 
 export default function EmptyState({ heading, body, icon }) {
   return (
-    <View style={styles.container}>
-      <View style={styles.iconWell}>
+    // A troca para o estado vazio não era anunciada: sem live region o usuário de
+    // leitor de tela ficava sem saber que a busca não retornou nada.
+    <View style={styles.container} accessibilityLiveRegion="polite">
+      <View
+        style={styles.iconWell}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
         <Ionicons name={icon} size={32} color={colors.accent} style={styles.icon} />
       </View>
-      <Text style={styles.heading}>{heading}</Text>
+      <Text style={styles.heading} accessibilityRole="header">{heading}</Text>
       <Text style={styles.body}>{body}</Text>
     </View>
   );

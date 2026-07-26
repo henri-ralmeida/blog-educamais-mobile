@@ -12,16 +12,27 @@ function buildDescription(content) {
 }
 
 export default function PostCard({ post, onPress }) {
+  const description = buildDescription(post.content);
+
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Ler post: ${post.title}`}
+      // O label só continha o título, então leitor de tela não recebia autor nem
+      // descrição — o requisito 1 do PDF exige os três em cada item da lista.
+      accessibilityLabel={`Ler post: ${post.title}. Autor: ${post.author}. ${description}`}
       accessibilityHint="Abre o conteúdo completo do post"
     >
       <View style={styles.authorRow}>
-        <Ionicons name="ribbon" size={12} color={colors.textMuted} style={styles.authorIcon} />
+        <Ionicons
+          name="ribbon"
+          size={12}
+          color={colors.textMuted}
+          style={styles.authorIcon}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
         <Text style={styles.author} numberOfLines={1}>
           {post.author}
         </Text>
@@ -30,7 +41,7 @@ export default function PostCard({ post, onPress }) {
         {post.title}
       </Text>
       <Text style={styles.description} numberOfLines={3}>
-        {buildDescription(post.content)}
+        {description}
       </Text>
       <Text style={styles.cta}>
         Continuar leitura

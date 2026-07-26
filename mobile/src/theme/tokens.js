@@ -11,13 +11,11 @@ export const spacing = {
 export const colors = {
   background: '#FFFFFF',
   surface: '#F3F4F6',
-  surfaceMuted: '#EEF3F8',
   border: '#DCE4ED',
   accent: '#2563EB',
   accentSoft: '#E8F0FE',
   onAccent: '#FFFFFF',
-  transparent: 'transparent',
-  // Reservado para Fase 2 (confirmação de exclusão de post/professor/aluno) — ver 01-UI-SPEC.md.
+  // Ações destrutivas (exclusão de post/professor/aluno) — ver 01-UI-SPEC.md.
   destructive: '#DC2626',
   textPrimary: '#111827',
   textSecondary: '#374151',

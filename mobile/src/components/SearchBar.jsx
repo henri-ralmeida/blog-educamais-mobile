@@ -7,8 +7,20 @@ export default function SearchBar({ value, onChangeText, placeholder = 'Buscar p
   const [focused, setFocused] = useState(false);
 
   return (
-    <View style={[styles.container, focused && styles.containerFocused]}>
-      <Ionicons name="search" size={20} color={colors.textMuted} style={styles.icon} />
+    // A role "search" fica no contêiner: aplicada ao TextInput, o react-native-web
+    // traduzia para role="search" (landmark) no <input> e destruía o papel textbox.
+    <View
+      style={[styles.container, focused && styles.containerFocused]}
+      accessibilityRole="search"
+    >
+      <Ionicons
+        name="search"
+        size={20}
+        color={colors.textMuted}
+        style={styles.icon}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
       <TextInput
         style={styles.input}
         value={value}
@@ -22,8 +34,14 @@ export default function SearchBar({ value, onChangeText, placeholder = 'Buscar p
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         accessibilityLabel="Buscar posts por título ou conteúdo"
-        accessibilityRole="search"
         returnKeyType="search"
+        // nativeID vira o id do <input> na web, silenciando o aviso de campo de
+        // formulário sem id/name do DevTools.
+        nativeID="busca-posts"
+        autoComplete="off"
+        autoCapitalize="none"
+        autoCorrect={false}
+        clearButtonMode="while-editing"
       />
     </View>
   );
