@@ -94,11 +94,6 @@ function getConfig() {
   return config;
 }
 
-module.exports = {
-  DEFAULT_JWT_EXPIRES_IN,
-  MAXIMUM_JWT_DURATION_SECONDS,
-  MINIMUM_JWT_SECRET_LENGTH,
-  getConfig,
-  loadConfig,
-  parseJwtExpiresIn,
-};
+// Somente getConfig é consumido pela aplicação; os demais símbolos existem
+// apenas como detalhe interno deste módulo.
+module.exports = { getConfig };

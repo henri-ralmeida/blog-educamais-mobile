@@ -1,18 +1,8 @@
 const { z } = require("zod");
+const { emailNormalizado, nomeObrigatorio } = require("../../config/campos");
+const { MIN_SENHA_CARACTERES, MAX_SENHA_BYTES } = require("../../config/security");
 
-const MIN_SENHA_CARACTERES = 6;
-const MAX_SENHA_BYTES = 72;
-
-function nomeObrigatorio() {
-  return z
-    .string()
-    .min(1, "nome is required")
-    .refine((nome) => nome.trim().length > 0, "nome não pode conter apenas espaços");
-}
-
-function validarSenhaLiteral(senha, contexto, permitirVazia = false) {
-  if (permitirVazia && senha === "") return;
-
+function validarSenhaLiteral(senha, contexto) {
   if (/^\s+$/u.test(senha)) {
     contexto.addIssue({
       code: "custom",
@@ -42,22 +32,29 @@ function validarSenhaLiteral(senha, contexto, permitirVazia = false) {
   }
 }
 
-const createProfessorSchema = z.object({
-  nome: nomeObrigatorio(),
-  email: z.email("email inválido"),
-  senha: z
-    .string()
-    .min(1, "senha is required")
-    .superRefine((senha, contexto) => validarSenhaLiteral(senha, contexto)),
-});
+const createProfessorSchema = z
+  .object({
+    nome: nomeObrigatorio(),
+    email: emailNormalizado(),
+    senha: z
+      .string()
+      .min(1, "senha é obrigatória")
+      .superRefine(validarSenhaLiteral),
+  })
+  .strict();
 
-const updateProfessorSchema = z.object({
-  nome: nomeObrigatorio().optional(),
-  email: z.email().optional(),
-  senha: z
-    .string()
-    .superRefine((senha, contexto) => validarSenhaLiteral(senha, contexto, true))
-    .optional(),
-});
+// Senha vazia era aceita como no-op silencioso, indistinguível de "manter a
+// senha atual" por engano. Para manter a senha, o campo deve ser omitido.
+const updateProfessorSchema = z
+  .object({
+    nome: nomeObrigatorio().optional(),
+    email: emailNormalizado().optional(),
+    senha: z
+      .string()
+      .min(1, "senha não pode ser vazia; omita o campo para manter a senha atual")
+      .superRefine(validarSenhaLiteral)
+      .optional(),
+  })
+  .strict();
 
 module.exports = { createProfessorSchema, updateProfessorSchema };

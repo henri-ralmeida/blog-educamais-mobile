@@ -44,7 +44,10 @@ function createCorsOptions(config) {
     },
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    // Sem expor estes headers o cliente não consegue ler quanto ainda resta do
+    // limite de tentativas de login.
+    exposedHeaders: ["RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "Retry-After"],
   };
 }
 
-module.exports = { createCorsOptions, isOriginAllowed };
+module.exports = { createCorsOptions };

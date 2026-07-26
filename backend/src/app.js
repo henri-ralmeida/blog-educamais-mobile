@@ -8,10 +8,18 @@ const authRoutes = require('./modules/auth/auth.routes');
 const { getConfig } = require('./config/env');
 const { createCorsOptions } = require('./config/cors');
 const { createLoginRateLimiters } = require('./middlewares/loginRateLimit');
+const { logControllerError } = require('./config/logger');
 
 function createApp() {
   const config = getConfig();
   const app = express();
+
+  // Sem isso, atrás do gateway do Docker todo request chega com o mesmo req.ip e
+  // o limitador por IP vira global: 10 logins errados de um usuário bloqueavam
+  // o login de todos por 15 minutos. O número de hops é configurável porque
+  // confiar em proxy demais permitiria forjar X-Forwarded-For.
+  const trustedProxyHops = Number(process.env.TRUSTED_PROXY_HOPS ?? 1);
+  app.set('trust proxy', Number.isFinite(trustedProxyHops) ? trustedProxyHops : 1);
 
   app.use(helmet());
   app.use(cors(createCorsOptions(config)));
@@ -32,10 +40,24 @@ function createApp() {
     res.json({ status: 'ok' });
   });
 
+  // Rota inexistente devolvia a página HTML padrão do Express para um cliente
+  // que só entende JSON.
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
+
+  // Sem error handler, JSON malformado escapava para o handler padrão do Express,
+  // que responde HTML e inclui err.stack fora de produção.
+  // eslint-disable-next-line no-unused-vars
+  app.use((error, req, res, next) => {
+    logControllerError('app', `${req.method} ${req.path}`, error);
+    if (error?.type === 'entity.parse.failed') {
+      return res.status(400).json({ error: 'JSON inválido' });
+    }
+    return res.status(500).json({ error: 'Internal server error' });
+  });
+
   return app;
 }
 
-const app = createApp();
-
-module.exports = app;
-module.exports.createApp = createApp;
+module.exports = createApp();

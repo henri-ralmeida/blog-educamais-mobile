@@ -23,7 +23,9 @@ async function listProfessores({ page = 1, limit = 10 } = {}) {
   const currentLimit = limit || 10;
   const skip = (currentPage - 1) * currentLimit;
 
-  const [data, total] = await Promise.all([
+  // findMany e count fora de transação podiam divergir sob escrita concorrente,
+  // fazendo o total do infinite scroll não bater com o conjunto retornado.
+  const [data, total] = await prisma.$transaction([
     prisma.professor.findMany({
       skip,
       take: currentLimit,
@@ -46,9 +48,9 @@ async function updateProfessor(id, data) {
   if (payload.email) {
     payload.email = payload.email.trim().toLowerCase();
   }
-  if (payload.senha === "") {
-    delete payload.senha;
-  } else if (payload.senha !== undefined) {
+  // Senha vazia agora é rejeitada no validator: manter a senha atual se expressa
+  // omitindo o campo, nao enviando string vazia.
+  if (payload.senha !== undefined) {
     payload.senha = await bcrypt.hash(payload.senha, BCRYPT_SALT_ROUNDS);
     payload.tokenVersion = { increment: 1 };
   }

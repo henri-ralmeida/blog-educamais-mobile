@@ -1,8 +1,19 @@
 const prisma = require("../../config/prisma");
 
+// Seleção explícita, como no módulo de professores: consultas com SELECT *
+// passariam a vazar qualquer coluna sensível adicionada ao modelo no futuro.
+const PUBLIC_ALUNO_SELECT = {
+  id: true,
+  nome: true,
+  email: true,
+  createdAt: true,
+  updatedAt: true,
+};
+
 async function createAluno(data) {
   return prisma.aluno.create({
     data: { ...data, email: data.email.trim().toLowerCase() },
+    select: PUBLIC_ALUNO_SELECT,
   });
 }
 
@@ -11,11 +22,12 @@ async function listAlunos({ page = 1, limit = 10 } = {}) {
   const currentLimit = limit || 10;
   const skip = (currentPage - 1) * currentLimit;
 
-  const [data, total] = await Promise.all([
+  const [data, total] = await prisma.$transaction([
     prisma.aluno.findMany({
       skip,
       take: currentLimit,
       orderBy: { createdAt: "desc" },
+      select: PUBLIC_ALUNO_SELECT,
     }),
     prisma.aluno.count(),
   ]);
@@ -36,6 +48,7 @@ async function updateAluno(id, data) {
   return prisma.aluno.update({
     where: { id },
     data: payload,
+    select: PUBLIC_ALUNO_SELECT,
   });
 }
 
@@ -52,6 +65,7 @@ async function deleteAluno(id) {
 }
 
 module.exports = {
+  PUBLIC_ALUNO_SELECT,
   createAluno,
   listAlunos,
   updateAluno,

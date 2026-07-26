@@ -1,20 +1,21 @@
 const { z } = require("zod");
+const { emailNormalizado, nomeObrigatorio } = require("../../config/campos");
 
-function nomeObrigatorio() {
-  return z
-    .string()
-    .min(1, "nome is required")
-    .refine((nome) => nome.trim().length > 0, "nome não pode conter apenas espaços");
-}
+// .strict(): o schema não-estrito aceitava POST /alunos com "senha" no corpo,
+// respondia 201 e descartava a chave em silêncio — o cliente ficava achando que
+// tinha cadastrado uma credencial de aluno, que nem existe no modelo.
+const createAlunoSchema = z
+  .object({
+    nome: nomeObrigatorio(),
+    email: emailNormalizado(),
+  })
+  .strict();
 
-const createAlunoSchema = z.object({
-  nome: nomeObrigatorio(),
-  email: z.email("email inválido"),
-});
-
-const updateAlunoSchema = z.object({
-  nome: nomeObrigatorio().optional(),
-  email: z.email().optional(),
-});
+const updateAlunoSchema = z
+  .object({
+    nome: nomeObrigatorio().optional(),
+    email: emailNormalizado().optional(),
+  })
+  .strict();
 
 module.exports = { createAlunoSchema, updateAlunoSchema };

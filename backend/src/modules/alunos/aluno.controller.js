@@ -1,52 +1,10 @@
 const alunoService = require("./aluno.service");
+const { parsePagination } = require("../../middlewares/parsePagination");
+const { logControllerError } = require("../../config/logger");
 
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 10;
-const MAX_PAGE = 1_000_000;
-const MAX_LIMIT = 100;
-
-function parsePaginationValue(value, { name, defaultValue, maximum }) {
-  if (value === undefined) return { value: defaultValue };
-
-  const parsed = typeof value === "string" || typeof value === "number"
-    ? Number(value)
-    : Number.NaN;
-
-  if (
-    (typeof value === "string" && value.trim() === "")
-    || !Number.isFinite(parsed)
-    || !Number.isInteger(parsed)
-    || parsed < 1
-    || parsed > maximum
-  ) {
-    return {
-      issue: {
-        path: name,
-        message: `${name} deve ser um número inteiro entre 1 e ${maximum}`,
-      },
-    };
-  }
-
-  return { value: parsed };
-}
-
-function parsePagination(query) {
-  const page = parsePaginationValue(query.page, {
-    name: "page",
-    defaultValue: DEFAULT_PAGE,
-    maximum: MAX_PAGE,
-  });
-  const limit = parsePaginationValue(query.limit, {
-    name: "limit",
-    defaultValue: DEFAULT_LIMIT,
-    maximum: MAX_LIMIT,
-  });
-  const issues = [page.issue, limit.issue].filter(Boolean);
-
-  return issues.length > 0
-    ? { issues }
-    : { page: page.value, limit: limit.value };
-}
+// Mesma política do módulo de professores: só código de erro de cliente vira
+// 400; falha de infraestrutura continua sendo 500.
+const CLIENT_ERROR_CODES = new Set(["P2000", "P2003", "P2011", "P2012"]);
 
 async function create(req, res) {
   try {
@@ -56,8 +14,11 @@ async function create(req, res) {
     if (error.code === "P2002") {
       return res.status(409).json({ error: "Email já cadastrado" });
     }
-    console.error(error);
-    return res.status(400).json({ error: "Requisição inválida" });
+    logControllerError("aluno.controller", "create", error);
+    if (CLIENT_ERROR_CODES.has(error?.code)) {
+      return res.status(400).json({ error: "Requisição inválida" });
+    }
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -73,7 +34,7 @@ async function list(req, res) {
     const result = await alunoService.listAlunos(parsed);
     return res.json(result);
   } catch (error) {
-    console.error(error);
+    logControllerError("aluno.controller", "list", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -89,8 +50,11 @@ async function update(req, res) {
     if (error.code === "P2002") {
       return res.status(409).json({ error: "Email já cadastrado" });
     }
-    console.error(error);
-    return res.status(400).json({ error: "Requisição inválida" });
+    logControllerError("aluno.controller", "update", error);
+    if (CLIENT_ERROR_CODES.has(error?.code)) {
+      return res.status(400).json({ error: "Requisição inválida" });
+    }
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -104,6 +68,7 @@ async function remove(req, res) {
 
     return res.status(204).send();
   } catch (error) {
+    logControllerError("aluno.controller", "remove", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
