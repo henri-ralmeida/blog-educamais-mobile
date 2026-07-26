@@ -5,6 +5,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { postsService } from '../../services/postsService';
 import { colors, spacing, typography } from '../../theme/tokens';
 
+function validarTextoObrigatorio(rotulo) {
+  return (valor) => (
+    typeof valor === 'string' && valor.trim().length > 0
+  ) || `${rotulo} não pode conter apenas espaços`;
+}
+
 // Reutilizável para criação E edição: route.params?.id presente = modo edição.
 export default function PostFormScreen({ route, navigation }) {
   const id = route.params?.id;
@@ -14,7 +20,6 @@ export default function PostFormScreen({ route, navigation }) {
   const [loadingPost, setLoadingPost] = useState(isEditMode);
   const [loadError, setLoadError] = useState(null);
   const [loadKey, setLoadKey] = useState(0);
-  const [postAuthor, setPostAuthor] = useState(user.nome);
   const [submitError, setSubmitError] = useState(null);
 
   const {
@@ -22,7 +27,9 @@ export default function PostFormScreen({ route, navigation }) {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { title: '', content: '' } });
+  } = useForm({
+    defaultValues: { title: '', content: '', author: user.nome },
+  });
 
   // Modo edição: busca dados atuais do post e popula o formulário via reset().
   // Modo criação: nenhuma chamada de rede, formulário renderiza vazio imediatamente.
@@ -34,8 +41,11 @@ export default function PostFormScreen({ route, navigation }) {
     postsService.getById(id)
       .then((data) => {
         if (cancelled) return;
-        setPostAuthor(data.author ?? user.nome);
-        reset({ title: data.title ?? '', content: data.content ?? '' });
+        reset({
+          title: data.title ?? '',
+          content: data.content ?? '',
+          author: user.nome,
+        });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -51,8 +61,8 @@ export default function PostFormScreen({ route, navigation }) {
 
   function onSubmit(data) {
     setSubmitError(null);
-    // Edição preserva autoria original; criação atribui autoria ao professor autenticado.
-    const payload = { title: data.title, content: data.content, author: postAuthor };
+    // O campo visual reflete a sessão; o backend vincula a autoria real ao JWT.
+    const payload = { title: data.title, content: data.content, author: data.author };
     const request = isEditMode ? postsService.update(id, payload) : postsService.create(payload);
     return request
       .then(() => {
@@ -103,7 +113,10 @@ export default function PostFormScreen({ route, navigation }) {
       <Controller
         control={control}
         name="title"
-        rules={{ required: 'Título obrigatório' }}
+        rules={{
+          required: 'Título obrigatório',
+          validate: validarTextoObrigatorio('Título'),
+        }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}
@@ -122,7 +135,10 @@ export default function PostFormScreen({ route, navigation }) {
       <Controller
         control={control}
         name="content"
-        rules={{ required: 'Conteúdo obrigatório' }}
+        rules={{
+          required: 'Conteúdo obrigatório',
+          validate: validarTextoObrigatorio('Conteúdo'),
+        }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={[styles.input, styles.multilineInput]}
@@ -139,7 +155,24 @@ export default function PostFormScreen({ route, navigation }) {
       {errors.content && <Text style={styles.errorText}>{errors.content.message}</Text>}
 
       <Text style={[styles.label, styles.fieldSpacing]}>Autor</Text>
-      <Text style={styles.readonlyValue}>{postAuthor}</Text>
+      <Controller
+        control={control}
+        name="author"
+        rules={{
+          required: 'Autor obrigatório',
+          validate: validarTextoObrigatorio('Autor'),
+        }}
+        render={({ field: { value } }) => (
+          <TextInput
+            style={[styles.input, styles.readonlyValue]}
+            value={value}
+            editable={false}
+            accessibilityLabel="Autor"
+            accessibilityHint="Autoria vinculada ao professor autenticado"
+          />
+        )}
+      />
+      {errors.author && <Text style={styles.errorText}>{errors.author.message}</Text>}
 
       {submitError && <Text style={[styles.errorText, styles.submitError]}>{submitError}</Text>}
 

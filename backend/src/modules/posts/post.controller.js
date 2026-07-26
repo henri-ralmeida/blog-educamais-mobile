@@ -10,11 +10,11 @@ function logControllerError(operation, error) {
 
 async function create(req, res) {
   try {
-    const post = await postService.createPost(req.body);
+    const post = await postService.createPost(req.body, req.auth.professor.id);
     return res.status(201).json(post);
   } catch (error) {
     logControllerError("create", error);
-    return res.status(400).json({ error: "Requisição inválida" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -46,7 +46,7 @@ async function update(req, res) {
     if (error?.code === "P2025") {
       return res.status(404).json({ error: "Post not found" });
     }
-    return res.status(400).json({ error: "Requisição inválida" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 

@@ -1,15 +1,22 @@
 const { z } = require("zod");
 
+function textoObrigatorio(campo) {
+  return z
+    .string()
+    .min(1, `${campo} is required`)
+    .refine((valor) => valor.trim().length > 0, `${campo} não pode conter apenas espaços`);
+}
+
 const createPostSchema = z.object({
-  title: z.string().min(1, "title is required"),
-  content: z.string().min(1, "content is required"),
-  author: z.string().min(1, "author is required"),
+  title: textoObrigatorio("title"),
+  content: textoObrigatorio("content"),
+  author: textoObrigatorio("author"),
 });
 
 const updatePostSchema = z.object({
-  title: z.string().min(1).optional(),
-  content: z.string().min(1).optional(),
-  author: z.string().min(1).optional(),
+  title: textoObrigatorio("title").optional(),
+  content: textoObrigatorio("content").optional(),
+  author: textoObrigatorio("author").optional(),
 });
 
 module.exports = { createPostSchema, updatePostSchema };

@@ -1,8 +1,23 @@
 const prisma = require('../../config/prisma');
 
-async function createPost(data) {
+async function createPost(data, professorId) {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+    select: { nome: true },
+  });
+
+  if (!professor) {
+    throw Object.assign(new Error("Professor autenticado não encontrado"), {
+      code: "AUTHENTICATED_PROFESSOR_NOT_FOUND",
+    });
+  }
+
   return prisma.post.create({
-    data
+    data: {
+      title: data.title,
+      content: data.content,
+      author: professor.nome,
+    },
   });
 }
 
@@ -21,7 +36,10 @@ async function getPostById(id) {
 async function updatePost(id, data) {
   return prisma.post.update({
     where: { id },
-    data
+    data: {
+      title: data.title,
+      content: data.content,
+    },
   });
 }
 
