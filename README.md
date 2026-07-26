@@ -20,9 +20,16 @@ Banco, backend e versão web do app mobile sobem juntos:
 ```bash
 # na raiz deste repositório
 cp .env.example .env
-# edite .env e troque JWT_SECRET por um segredo aleatório com 32+ caracteres
+# edite .env e defina POSTGRES_PASSWORD, JWT_SECRET e RATE_LIMIT_SECRET
+# (os dois segredos com 32+ caracteres aleatórios e distintos entre si)
 docker compose up --build
 ```
+
+> **Windows:** salve o `.env` com fim de linha **LF**. Com CRLF, cada valor
+> termina em carriage return dentro do container Linux: `CORS_ORIGIN` vira
+> `http://localhost:8081
+` e toda requisição do app falha sem erro visível.
+> O `.gitattributes` do repositório já força LF nos arquivos versionados.
 
 Serviços disponíveis:
 
@@ -31,27 +38,31 @@ Serviços disponíveis:
 - Health check: `http://localhost:3000/health`
 - PostgreSQL: `localhost:55432`
 
-O serviço mobile executa Expo Web com Fast Refresh. O código-fonte fica montado no container; alterações salvas em `mobile/` são recarregadas no navegador. A variável `EXPO_PUBLIC_API_URL` aponta o bundle web para `http://localhost:3000`. O backend inicia em modo de produção e aceita somente as origens exatas definidas por `CORS_ORIGIN`. O `.env.example` usa `http://localhost:8081` para o app web do Compose.
+O serviço mobile executa Expo Web. A variável `EXPO_PUBLIC_API_URL` aponta o bundle web para `http://localhost:3000`. O backend inicia em modo de produção e aceita somente as origens exatas definidas por `CORS_ORIGIN`. O `.env.example` usa `http://localhost:8081` para o app web do Compose.
+
+> **Hot reload não funciona pelo container quando o repositório está no filesystem do Windows.**
+> O bind mount não entrega eventos de inotify e o watcher do Metro não faz polling.
+> Para desenvolver com recarga automática, pare o serviço mobile e rode o Expo direto no host:
+> `docker compose stop mobile` e depois, em `mobile/`, `bun install && bunx expo start --web`.
+> O backend continua no Docker normalmente.
+
+> Alterações no backend exigem `docker compose up -d --build backend`: a imagem copia
+> o código no build, não há volume montado nesse serviço.
 
 ### Bootstrap seguro do primeiro professor
 
 O cadastro REST de professores continua protegido: somente um professor autenticado pode cadastrar outros professores. Em banco novo, crie o primeiro professor pelo seed administrativo explícito:
 
 ```bash
-# na raiz, com os serviços db e backend já ativos
-INITIAL_TEACHER_NAME="Professor Inicial" \
-INITIAL_TEACHER_EMAIL="professor@example.com" \
-INITIAL_TEACHER_PASSWORD="troque-por-uma-senha-forte" \
-docker compose exec -T -e INITIAL_TEACHER_NAME -e INITIAL_TEACHER_EMAIL \
-  -e INITIAL_TEACHER_PASSWORD backend npx prisma db seed
+# na raiz, com o serviço db ativo. As variáveis vêm do .env:
+#   INITIAL_TEACHER_NAME, INITIAL_TEACHER_EMAIL, INITIAL_TEACHER_PASSWORD
+docker compose --profile bootstrap run --rm seed
 ```
 
-Fora do Docker, execute o equivalente no diretório `backend`:
+Fora do Docker, execute no diretório `backend` com as mesmas variáveis definidas
+no ambiente:
 
 ```bash
-INITIAL_TEACHER_NAME="Professor Inicial" \
-INITIAL_TEACHER_EMAIL="professor@example.com" \
-INITIAL_TEACHER_PASSWORD="troque-por-uma-senha-forte" \
 npx prisma db seed
 ```
 
@@ -72,7 +83,7 @@ Não use `docker compose down -v` durante o UAT: `-v` remove o volume e apaga da
 ```bash
 # 1. Clonar o repositório
 git clone <URL_DO_REPO>
-cd blogeducamais-techchallenge-fase04/mobile
+cd blogeducamais-techchallenge-04/mobile
 
 # 2. Instalar dependências
 bun install
@@ -107,24 +118,41 @@ Estrutura de pastas (`mobile/src/`):
 
 ```
 src/
-├── services/
-│   ├── api/client.js          # injeta Bearer JWT e invalida sessão após 401
-│   ├── postsService.js        # CRUD de posts
-│   ├── professoresService.js  # CRUD de professores
-│   ├── alunosService.js       # CRUD de alunos
-│   └── authService.js         # login real (POST /auth/login)
-├── screens/
-│   ├── posts/                 # lista pública, leitura, admin, formulário
-│   ├── professores/           # lista + formulário (criar/editar)
-│   ├── alunos/                # lista + formulário (criar/editar)
-│   ├── auth/                  # LoginScreen
-│   └── admin/                 # AdminHomeScreen (hub administrativo)
-├── navigation/
-│   └── RootNavigator.jsx       # troca a stack inteira (PublicStack vs AdminStack)
+├── components/                 # PostCard, SearchBar, EmptyState, ErrorState,
+│                               # FieldError, ErrorBoundary
+├── config/
+│   └── env.js                  # resolve o host da API por plataforma
 ├── contexts/
 │   └── AuthContext.jsx         # fonte de verdade da sessão do professor
-└── theme/
-    └── tokens.js                # spacing, colors, typography centralizados
+├── hooks/
+│   └── usePaginatedCrudList.js # paginação por offset com dedupe por id
+├── navigation/
+│   ├── RootNavigator.jsx       # troca a stack inteira (PublicStack vs AdminStack)
+│   ├── PublicStack.jsx         # leitura pública
+│   └── AdminStack.jsx          # área autenticada + botão de saída
+├── screens/
+│   ├── admin/                  # AdminHomeScreen (hub administrativo)
+│   ├── alunos/                 # lista + formulário (criar/editar)
+│   ├── auth/                   # LoginScreen
+│   ├── posts/                  # lista pública, leitura, admin, formulário
+│   ├── professores/            # lista + formulário (criar/editar)
+│   └── shared/
+│       └── CrudListScreen.jsx  # listagem administrativa reusada por
+│                               # professores e alunos
+├── services/
+│   ├── api/client.js           # Bearer só em rota privada; invalida sessão em 401
+│   ├── session/sessionStore.js # token em memória + pub/sub de invalidação
+│   ├── postsService.js         # CRUD de posts
+│   ├── professoresService.js   # CRUD de professores
+│   ├── alunosService.js        # CRUD de alunos
+│   └── authService.js          # login real (POST /auth/login)
+├── theme/
+│   └── tokens.js               # spacing, colors, typography centralizados
+└── utils/
+    ├── dialogs.js              # confirmação destrutiva (window.confirm na web,
+    │                           # Alert nativo no mobile)
+    ├── requestError.js         # classificação única de erro de requisição
+    └── validators.js           # regras de email, nome e senha dos formulários
 ```
 
 **Navegação condicional:** `RootNavigator` decide entre `PublicStack` (leitura/busca de posts, sem login) e `AdminStack` (hub administrativo) com base em `AuthContext.isAuthenticated`. A troca acontece na raiz do app — nenhuma tela individual precisa verificar permissão por conta própria.
@@ -163,16 +191,24 @@ src/
 
 ---
 
-## Testes
+## Validação
 
-Backend (requer PostgreSQL migrado e as variáveis obrigatórias):
+O projeto não possui suíte de testes automatizados — o desafio não os exige.
+A validação é funcional, contra o ambiente real:
 
 ```bash
-cd backend
-npm test
+# backend de pé e respondendo
+curl -s http://localhost:3000/health
+
+# leitura pública, sem token
+curl -s http://localhost:3000/posts
+
+# rota administrativa exige credencial (deve responder 401)
+curl -s -o /dev/null -w "%{http_code}
+" http://localhost:3000/professores
 ```
 
-O mobile não possui infraestrutura de testes automatizados. Valide o bundle web com Bun:
+Bundle web do app:
 
 ```bash
 cd mobile
@@ -180,4 +216,3 @@ bun install --frozen-lockfile
 bunx expo export --platform web
 ```
 
-A validação funcional continua disponível via Expo Go contra o backend real.
