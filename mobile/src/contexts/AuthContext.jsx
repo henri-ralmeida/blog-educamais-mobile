@@ -10,6 +10,7 @@ import {
 import { authService } from '../services/authService';
 
 const SESSION_KEY = '@blogeducamais:session';
+const MAX_TIMEOUT = 2 ** 31 - 1;
 
 const AuthContext = createContext(null);
 
@@ -72,16 +73,6 @@ const initialState = {
   isLoading: true,
 };
 
-function scheduleExpiry(expiresAt, onExpire) {
-  const delay = expiresAt - Date.now();
-  if (delay <= 0) {
-    onExpire();
-    return null;
-  }
-  if (delay > 2 ** 31 - 1) return null; // setTimeout não aceita delay acima do signed int32.
-  return setTimeout(onExpire, delay);
-}
-
 function reducer(state, action) {
   switch (action.type) {
     case 'RESTORE':
@@ -113,13 +104,30 @@ export function AuthProvider({ children }) {
     expiryTimerRef.current = null;
   }
 
+  // Expiração acima do limite do setTimeout (signed int32, ~24,8 dias) era
+  // simplesmente ignorada, eliminando o watchdog local. Agora reagenda em janelas.
+  function armExpiry(expiresAt, onExpire) {
+    const delay = expiresAt - Date.now();
+    if (delay <= 0) {
+      onExpire();
+      return null;
+    }
+    return setTimeout(() => {
+      if (Date.now() >= expiresAt) onExpire();
+      else expiryTimerRef.current = armExpiry(expiresAt, onExpire);
+    }, Math.min(delay, MAX_TIMEOUT));
+  }
+
+  // Devolve false quando a expiração disparou de forma síncrona: sem isso o
+  // dispatch seguinte ressuscitava na UI uma sessão já invalidada.
   function activateSession(session) {
     clearExpiryTimer();
     desiredSessionRef.current = session;
     setSession(session);
-    expiryTimerRef.current = scheduleExpiry(session.expiresAt, () => {
+    expiryTimerRef.current = armExpiry(session.expiresAt, () => {
       invalidateSession(session.token);
     });
+    return desiredSessionRef.current === session;
   }
 
   function persistLatestSession() {
@@ -160,13 +168,22 @@ export function AuthProvider({ children }) {
           ...normalizedSession,
           professor: validated.professor,
         });
-        if (!restoredSession) throw new Error('Sessão remota inválida');
+        if (!restoredSession) {
+          throw Object.assign(new Error('Sessão remota inválida'), { isSessionRejected: true });
+        }
 
         if (!cancelled) activateSession(restoredSession);
-      } catch {
+      } catch (error) {
         restoredSession = null;
         clearSession();
-        await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+        // Apagar a sessão salva em QUALQUER erro deslogava quem abrisse o app
+        // offline, contrariando a política do próprio handler de AppState.
+        // Só credencial recusada pelo servidor ou sessão estruturalmente
+        // inválida justificam descartar o registro persistido.
+        const status = error?.response?.status;
+        if (status === 401 || status === 403 || error?.isSessionRejected) {
+          await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+        }
       } finally {
         if (!cancelled) dispatch({ type: 'RESTORE', session: restoredSession });
       }
@@ -176,6 +193,9 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
       clearExpiryTimer();
+      // Restore interrompido no meio deixava o token no singleton do sessionStore
+      // depois da desmontagem do provider.
+      if (desiredSessionRef.current === null) clearSession();
     };
   }, []);
 
@@ -187,7 +207,10 @@ export function AuthProvider({ children }) {
     if (!normalizedSession) {
       throw new Error('O servidor retornou uma sessão inválida. Entre novamente.');
     }
-    activateSession(normalizedSession);
+    const active = activateSession(normalizedSession);
+    if (!active) {
+      throw new Error('A sessão recebida já estava expirada. Entre novamente.');
+    }
     dispatch({ type: 'LOGIN', session: normalizedSession });
     try {
       await persistLatestSession();
@@ -221,8 +244,14 @@ export function AuthProvider({ children }) {
         const validated = await authService.validateSession();
         if (desiredSessionRef.current?.token === session.token) {
           const refreshed = normalizeSession({ ...session, professor: validated.professor });
-          if (!refreshed) invalidateSession(session.token);
-          else activateSession(refreshed);
+          if (!refreshed) {
+            invalidateSession(session.token);
+          } else if (activateSession(refreshed)) {
+            // Sem dispatch e sem persistir, um nome de professor alterado no
+            // servidor ficava obsoleto na UI e no AsyncStorage indefinidamente.
+            dispatch({ type: 'LOGIN', session: refreshed });
+            persistLatestSession().catch(() => {});
+          }
         }
       } catch (error) {
         // 401 já invalida via interceptor. Falha transitória de rede não encerra
@@ -236,16 +265,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function logout() {
+    // A UI e o token em memória caem PRIMEIRO. Antes o timer de expiração e a
+    // sessão desejada eram desmontados e, se a escrita falhasse, a função abortava
+    // deixando token vivo, UI autenticada e watchdog destruído para sempre.
     clearExpiryTimer();
     desiredSessionRef.current = null;
+    clearSession();
+    dispatch({ type: 'LOGOUT' });
     try {
       await persistLatestSession();
     } catch {
-      throw new Error('Não foi possível encerrar a sessão. Tente novamente.');
-    }
-    if (desiredSessionRef.current === null) {
-      clearSession();
-      dispatch({ type: 'LOGOUT' });
+      throw new Error(
+        'Você foi desconectado, mas não foi possível apagar a sessão salva neste dispositivo.',
+      );
     }
   }
 

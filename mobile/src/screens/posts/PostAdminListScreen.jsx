@@ -1,30 +1,38 @@
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import EmptyState from '../../components/EmptyState';
+import ErrorState from '../../components/ErrorState';
 import { postsService } from '../../services/postsService';
+import { confirmDestructiveAction } from '../../utils/dialogs';
+import { describeRequestError } from '../../utils/requestError';
 import { colors, spacing, typography } from '../../theme/tokens';
 
 export default function PostAdminListScreen({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [actionError, setActionError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
+  const hasLoadedRef = useRef(false);
 
   // Recarrega no foco inicial e após voltar da criação/edição. Cleanup impede
   // atualização de estado quando tela perde foco ou é desmontada.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      setLoading(true);
-      setHasError(false);
+      if (!hasLoadedRef.current) setLoading(true);
+      setErrorMessage(null);
       postsService.list()
         .then((data) => {
-          if (!cancelled) setPosts(data);
+          if (cancelled) return;
+          setPosts(data);
+          hasLoadedRef.current = true;
         })
-        .catch(() => {
-          if (!cancelled) setHasError(true);
+        .catch((error) => {
+          if (cancelled) return;
+          setErrorMessage(describeRequestError(error).message);
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -35,19 +43,13 @@ export default function PostAdminListScreen({ navigation }) {
     }, [retryKey]),
   );
 
-  function confirmDelete(post) {
-    Alert.alert(
-      'Excluir post',
-      'Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => handleDelete(post),
-        },
-      ],
-    );
+  async function confirmDelete(post) {
+    setActionError(null);
+    const confirmed = await confirmDestructiveAction({
+      title: 'Excluir post',
+      message: `Tem certeza que deseja excluir "${post.title}"? Esta ação não pode ser desfeita.`,
+    });
+    if (confirmed) handleDelete(post);
   }
 
   function handleDelete(post) {
@@ -61,7 +63,9 @@ export default function PostAdminListScreen({ navigation }) {
           setPosts((current) => current.filter((p) => p.id !== post.id));
           return;
         }
-        Alert.alert('Erro', 'Não foi possível excluir o post. Tente novamente.');
+        // Antes o feedback saía por Alert.alert, engolido na web: uma falha de
+        // exclusão não produzia sinal nenhum e o usuário assumia sucesso.
+        setActionError(describeRequestError(err).message);
       });
   }
 
@@ -73,20 +77,16 @@ export default function PostAdminListScreen({ navigation }) {
     );
   }
 
-  if (hasError) {
+  // Erro em tela cheia só quando não há nada para mostrar. Antes uma falha
+  // transitória no refetch de foco descartava a lista inteira já carregada.
+  if (errorMessage && posts.length === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>
-          Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.
-        </Text>
-        <Pressable
-          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
-          onPress={() => setRetryKey((k) => k + 1)}
-          accessibilityRole="button"
-          accessibilityLabel="Tentar carregar os posts novamente"
-        >
-          <Text style={styles.retryButtonText}>Tentar novamente</Text>
-        </Pressable>
+        <ErrorState
+          message={errorMessage}
+          onRetry={() => setRetryKey((k) => k + 1)}
+          retryLabel="Tentar carregar os posts novamente"
+        />
       </View>
     );
   }
@@ -97,6 +97,24 @@ export default function PostAdminListScreen({ navigation }) {
       contentContainerStyle={styles.listContent}
       data={posts}
       keyExtractor={(item) => String(item.id)}
+      ListHeaderComponent={
+        errorMessage || actionError ? (
+          <View style={styles.banner} accessibilityRole="alert" accessibilityLiveRegion="polite">
+            <Text style={styles.bannerText}>{actionError ?? errorMessage}</Text>
+            <Pressable
+              onPress={() => {
+                setActionError(null);
+                setRetryKey((k) => k + 1);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Atualizar a lista de posts"
+              style={({ pressed }) => [styles.bannerAction, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.bannerActionText}>Atualizar</Text>
+            </Pressable>
+          </View>
+        ) : null
+      }
       renderItem={({ item }) => (
         <View style={styles.item}>
           <Text style={styles.title} numberOfLines={2}>
@@ -157,23 +175,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingHorizontal: spacing['3xl'],
   },
-  errorText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    textAlign: 'center',
+  banner: {
+    marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.accent,
+    padding: spacing.md,
     borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.destructive,
   },
-  retryButtonText: {
+  bannerText: {
+    ...typography.label,
+    color: colors.textPrimary,
+  },
+  bannerAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  bannerActionText: {
     ...typography.button,
-    color: colors.onAccent,
+    color: colors.accent,
   },
   buttonPressed: {
     opacity: 0.72,

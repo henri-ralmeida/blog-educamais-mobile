@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AdminHomeScreen from '../screens/admin/AdminHomeScreen';
@@ -10,6 +10,7 @@ import ProfessorFormScreen from '../screens/professores/ProfessorFormScreen';
 import AlunoListScreen from '../screens/alunos/AlunoListScreen';
 import AlunoFormScreen from '../screens/alunos/AlunoFormScreen';
 import { useAuth } from '../contexts/AuthContext';
+import { confirmDestructiveAction, notify } from '../utils/dialogs';
 import { colors, spacing, typography } from '../theme/tokens';
 
 const Stack = createNativeStackNavigator();
@@ -20,29 +21,27 @@ function LogoutButton() {
   const { logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  function handleLogout() {
+  // Alert.alert é no-op na web: o botão "Sair" simplesmente não fazia nada e o
+  // JWT continuava no storage do navegador até expirar, com a área
+  // administrativa acessível para o próximo usuário da máquina.
+  async function handleLogout() {
     if (isLoggingOut) return;
-    Alert.alert(
-      'Sair',
-      'Deseja encerrar a sessão administrativa?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sair',
-          style: 'destructive',
-          onPress: async () => {
-            setIsLoggingOut(true);
-            try {
-              await logout();
-            } catch (err) {
-              Alert.alert('Erro', err.message);
-            } finally {
-              setIsLoggingOut(false);
-            }
-          },
-        },
-      ],
-    );
+    const confirmed = await confirmDestructiveAction({
+      title: 'Sair',
+      message: 'Deseja encerrar a sessão administrativa?',
+      confirmLabel: 'Sair',
+    });
+    if (!confirmed) return;
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch (err) {
+      // Mensagem de rejeição não-Error virava "undefined" na tela.
+      notify('Erro ao sair', err?.message ?? 'Não foi possível encerrar a sessão.');
+    } finally {
+      setIsLoggingOut(false);
+    }
   }
 
   return (
