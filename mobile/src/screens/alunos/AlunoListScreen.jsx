@@ -12,6 +12,7 @@ export default function AlunoListScreen({ navigation }) {
       formRoute="AlunoForm"
       singular="aluno"
       plural="alunos"
+      criarLabel="Novo aluno"
       emptyIcon="school-outline"
       emptyHeading="Nenhum aluno cadastrado"
       emptyBody="Cadastre o primeiro aluno para começar."

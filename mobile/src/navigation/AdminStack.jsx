@@ -11,7 +11,7 @@ import AlunoListScreen from '../screens/alunos/AlunoListScreen';
 import AlunoFormScreen from '../screens/alunos/AlunoFormScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { confirmDestructiveAction, notify } from '../utils/dialogs';
-import { colors, spacing, typography } from '../theme/tokens';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const Stack = createNativeStackNavigator();
 
@@ -57,60 +57,30 @@ function LogoutButton() {
       {isLoggingOut ? (
         <ActivityIndicator color={colors.textSecondary} accessibilityLabel="Encerrando sessão" />
       ) : (
-        <Text style={styles.logoutText}>Sair</Text>
+        <>
+          <Ionicons
+            name="log-out-outline"
+            size={16}
+            color={colors.textSecondary}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+          <Text style={styles.logoutText}>Sair</Text>
+        </>
       )}
     </Pressable>
   );
 }
 
-function CreatePostButton({ navigation }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.headerAction, pressed && styles.headerActionPressed]}
-      onPress={() => navigation.navigate('PostForm')}
-      accessibilityRole="button"
-      accessibilityLabel="Criar novo post"
-      hitSlop={spacing.sm}
-    >
-      <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
-    </Pressable>
-  );
-}
-
-function CreateProfessorButton({ navigation }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.headerAction, pressed && styles.headerActionPressed]}
-      onPress={() => navigation.navigate('ProfessorForm')}
-      accessibilityRole="button"
-      accessibilityLabel="Criar novo professor"
-      hitSlop={spacing.sm}
-    >
-      <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
-    </Pressable>
-  );
-}
-
-function CreateAlunoButton({ navigation }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.headerAction, pressed && styles.headerActionPressed]}
-      onPress={() => navigation.navigate('AlunoForm')}
-      accessibilityRole="button"
-      accessibilityLabel="Criar novo aluno"
-      hitSlop={spacing.sm}
-    >
-      <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
-    </Pressable>
-  );
-}
 
 export default function AdminStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerTitleStyle: typography.display,
-        headerTintColor: colors.textPrimary,
+        headerTitleStyle: { ...typography.title, color: colors.textPrimary },
+        headerTintColor: colors.accent,
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: colors.paper },
       }}
     >
       <Stack.Screen
@@ -124,10 +94,7 @@ export default function AdminStack() {
       <Stack.Screen
         name="PostAdminList"
         component={PostAdminListScreen}
-        options={({ navigation }) => ({
-          title: 'Administração de posts',
-          headerRight: () => <CreatePostButton navigation={navigation} />,
-        })}
+        options={{ title: 'Posts' }}
       />
       <Stack.Screen
         name="PostForm"
@@ -139,10 +106,7 @@ export default function AdminStack() {
       <Stack.Screen
         name="ProfessorList"
         component={ProfessorListScreen}
-        options={({ navigation }) => ({
-          title: 'Professores',
-          headerRight: () => <CreateProfessorButton navigation={navigation} />,
-        })}
+        options={{ title: 'Professores' }}
       />
       <Stack.Screen
         name="ProfessorForm"
@@ -154,10 +118,7 @@ export default function AdminStack() {
       <Stack.Screen
         name="AlunoList"
         component={AlunoListScreen}
-        options={({ navigation }) => ({
-          title: 'Alunos',
-          headerRight: () => <CreateAlunoButton navigation={navigation} />,
-        })}
+        options={{ title: 'Alunos' }}
       />
       <Stack.Screen
         name="AlunoForm"
@@ -172,16 +133,23 @@ export default function AdminStack() {
 
 const styles = StyleSheet.create({
   headerAction: {
-    minWidth: 44,
-    minHeight: 44,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xs,
+    minWidth: 44,
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    marginLeft: spacing.sm,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   headerActionPressed: {
     opacity: 0.72,
   },
   logoutText: {
-    ...typography.body,
+    ...typography.button,
     color: colors.textSecondary,
   },
 });

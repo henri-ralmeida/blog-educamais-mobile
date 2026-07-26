@@ -5,7 +5,7 @@ import FieldError from '../../components/FieldError';
 import { useAuth } from '../../contexts/AuthContext';
 import { postsService } from '../../services/postsService';
 import { describeRequestError } from '../../utils/requestError';
-import { colors, spacing, typography } from '../../theme/tokens';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
 
 function validarTextoObrigatorio(rotulo) {
   return (valor) => (
@@ -213,10 +213,13 @@ export default function PostFormScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
   },
   content: {
-    padding: spacing.md,
+    padding: spacing.lg,
+    maxWidth: 560,
+    width: '100%',
+    alignSelf: 'center',
   },
   centered: {
     flex: 1,
@@ -226,18 +229,22 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.label,
+    fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   fieldSpacing: {
     marginTop: spacing.lg,
   },
   input: {
     ...typography.body,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
+    backgroundColor: colors.background,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    minHeight: 44,
+    paddingVertical: spacing.sm,
+    minHeight: 46,
     color: colors.textPrimary,
   },
   multilineInput: {
@@ -247,6 +254,7 @@ const styles = StyleSheet.create({
   },
   readonlyValue: {
     ...typography.body,
+    backgroundColor: colors.surface,
     color: colors.textMuted,
   },
   errorText: {
@@ -267,9 +275,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   button: {
+    flexDirection: 'row',
     marginTop: spacing.xl,
-    minHeight: 44,
-    borderRadius: 8,
+    minHeight: 46,
+    borderRadius: radii.md,
     backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',

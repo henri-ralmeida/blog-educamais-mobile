@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '../theme/tokens';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 export default function SearchBar({ value, onChangeText, placeholder = 'Buscar por título ou conteúdo...' }) {
   const [focused, setFocused] = useState(false);
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 46,
     backgroundColor: colors.background,
-    borderRadius: 12,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.lg,

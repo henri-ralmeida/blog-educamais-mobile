@@ -8,7 +8,7 @@ import { Controller, useForm } from 'react-hook-form';
 import FieldError from '../../components/FieldError';
 import { professoresService } from '../../services/professoresService';
 import { describeRequestError } from '../../utils/requestError';
-import { colors, spacing, typography } from '../../theme/tokens';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
 import { emailRule, nomeRule, senhaRules } from '../../utils/validators';
 
 export default function ProfessorFormScreen({ route, navigation }) {
@@ -148,25 +148,32 @@ export default function ProfessorFormScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
   },
   content: {
-    padding: spacing.md,
+    padding: spacing.lg,
+    maxWidth: 560,
+    width: '100%',
+    alignSelf: 'center',
   },
   label: {
     ...typography.label,
+    fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   fieldSpacing: {
     marginTop: spacing.lg,
   },
   input: {
     ...typography.body,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
+    backgroundColor: colors.background,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    minHeight: 44,
+    paddingVertical: spacing.sm,
+    minHeight: 46,
     color: colors.textPrimary,
   },
   errorText: {
@@ -178,9 +185,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   button: {
+    flexDirection: 'row',
     marginTop: spacing.xl,
-    minHeight: 44,
-    borderRadius: 8,
+    minHeight: 46,
+    borderRadius: radii.md,
     backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { colors, spacing, typography } from '../../theme/tokens';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
 import { emailRule, senhaRules } from '../../utils/validators';
 
 function getLoginErrorMessage(error) {
@@ -145,30 +145,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
     paddingHorizontal: spacing.lg,
+    maxWidth: 460,
+    width: '100%',
+    alignSelf: 'center',
   },
   heading: {
     ...typography.display,
-    fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: spacing.xl,
-    textAlign: 'center',
+    marginBottom: spacing.lg,
   },
   label: {
     ...typography.label,
+    fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   fieldSpacing: {
     marginTop: spacing.lg,
   },
   input: {
     ...typography.body,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
+    backgroundColor: colors.background,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    minHeight: 44,
+    paddingVertical: spacing.sm,
+    minHeight: 46,
     color: colors.textPrimary,
   },
   errorText: {
@@ -182,8 +187,8 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: spacing.xl,
-    minHeight: 44,
-    borderRadius: 8,
+    minHeight: 48,
+    borderRadius: radii.md,
     backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
@@ -192,8 +197,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    ...typography.button,
+    color: colors.onAccent,
   },
 });

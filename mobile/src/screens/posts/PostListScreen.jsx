@@ -160,11 +160,13 @@ export default function PostListScreen({ navigation }) {
         <View style={styles.listHeader}>
           <View style={styles.intro}>
             <Text style={styles.eyebrow}>CONTEÚDO PARA APRENDER</Text>
+            {/* Traço de marca-texto: a assinatura visual do app, usada só aqui. */}
+            <View style={styles.eyebrowRule} />
             <Text style={styles.introTitle} accessibilityRole="header">
               Ideias que continuam com você.
             </Text>
             <Text style={styles.introBody}>
-              Encontre leituras preparadas por professores para ampliar o que você aprende.
+              Leituras preparadas por professores, prontas para o seu tempo de estudo.
             </Text>
           </View>
           <SearchBar value={searchTerm} onChangeText={setSearchTerm} />
@@ -194,7 +196,7 @@ export default function PostListScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
   },
   listContent: {
     paddingTop: 0,
@@ -211,11 +213,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   eyebrow: {
-    ...typography.label,
+    ...typography.eyebrow,
     color: colors.accent,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    marginBottom: spacing.xs,
+  },
+  eyebrowRule: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.highlight,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   introTitle: {
     ...typography.display,
@@ -230,7 +237,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
     paddingHorizontal: spacing.xl,
   },
   inlineLoader: {

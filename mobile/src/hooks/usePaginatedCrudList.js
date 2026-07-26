@@ -119,6 +119,7 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
 
   return {
     items,
+    total,
     loading,
     refreshing,
     isFetchingMore,

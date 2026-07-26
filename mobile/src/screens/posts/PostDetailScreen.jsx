@@ -96,13 +96,16 @@ export default function PostDetailScreen({ route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
   },
   content: {
-    padding: spacing.md,
+    padding: spacing.lg,
+    maxWidth: 680,
+    width: '100%',
+    alignSelf: 'center',
   },
   title: {
-    ...typography.heading,
+    ...typography.display,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
@@ -113,13 +116,15 @@ const styles = StyleSheet.create({
   },
   body: {
     ...typography.body,
-    color: colors.textPrimary,
+    fontSize: 17,
+    lineHeight: 28,
+    color: colors.textSecondary,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
     paddingHorizontal: spacing['3xl'],
   },
 });

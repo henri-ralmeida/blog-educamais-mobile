@@ -4,10 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
+import PrimaryButton from '../../components/PrimaryButton';
 import { postsService } from '../../services/postsService';
 import { confirmDestructiveAction } from '../../utils/dialogs';
 import { describeRequestError } from '../../utils/requestError';
-import { colors, spacing, typography } from '../../theme/tokens';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
 
 export default function PostAdminListScreen({ navigation }) {
   const [posts, setPosts] = useState([]);
@@ -91,161 +92,221 @@ export default function PostAdminListScreen({ navigation }) {
     );
   }
 
+  const banner = actionError ?? errorMessage;
+
   return (
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.listContent}
-      data={posts}
-      keyExtractor={(item) => String(item.id)}
-      ListHeaderComponent={
-        errorMessage || actionError ? (
-          <View style={styles.banner} accessibilityRole="alert" accessibilityLiveRegion="polite">
-            <Text style={styles.bannerText}>{actionError ?? errorMessage}</Text>
-            <Pressable
-              onPress={() => {
-                setActionError(null);
-                setRetryKey((k) => k + 1);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Atualizar a lista de posts"
-              style={({ pressed }) => [styles.bannerAction, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.bannerActionText}>Atualizar</Text>
-            </Pressable>
-          </View>
-        ) : null
-      }
-      renderItem={({ item }) => (
-        <View style={styles.item}>
-          <Text style={styles.title} numberOfLines={2}>
-            {item.title}
+    <View style={styles.container}>
+      <View style={styles.toolbar}>
+        <View>
+          <Text style={styles.toolbarEyebrow}>PUBLICAÇÕES</Text>
+          <Text style={styles.toolbarCount}>
+            {posts.length === 1 ? '1 post publicado' : `${posts.length} posts publicados`}
           </Text>
-          <Text style={styles.preview} numberOfLines={3}>
-            {item.content}
-          </Text>
-          <Text style={styles.author} numberOfLines={1}>
-            {item.author}
-          </Text>
-          <View style={styles.actionsRow}>
-            <Pressable
-              style={({ pressed }) => [styles.editButton, pressed && styles.buttonPressed]}
-              onPress={() => navigation.navigate('PostForm', { id: item.id })}
-              accessibilityRole="button"
-              accessibilityLabel={`Editar post: ${item.title}`}
-            >
-              <Ionicons name="create-outline" size={20} color={colors.accent} />
-              <Text style={styles.editLabel}>Editar</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.deleteButton, pressed && styles.buttonPressed]}
-              onPress={() => confirmDelete(item)}
-              accessibilityRole="button"
-              accessibilityLabel={`Excluir post: ${item.title}`}
-            >
-              <Ionicons name="trash-outline" size={20} color={colors.destructive} />
-              <Text style={styles.deleteLabel}>Excluir</Text>
-            </Pressable>
-          </View>
+        </View>
+        <PrimaryButton
+          label="Novo post"
+          icon="add"
+          onPress={() => navigation.navigate('PostForm')}
+          accessibilityLabel="Criar novo post"
+        />
+      </View>
+
+      {banner && (
+        <View style={styles.banner} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <Ionicons
+            name="alert-circle"
+            size={18}
+            color={colors.destructive}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+          <Text style={styles.bannerText}>{banner}</Text>
+          <Pressable
+            onPress={() => {
+              setActionError(null);
+              setRetryKey((k) => k + 1);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Atualizar a lista de posts"
+            style={({ pressed }) => [styles.bannerAction, pressed && styles.pressed]}
+          >
+            <Text style={styles.bannerActionText}>Atualizar</Text>
+          </Pressable>
         </View>
       )}
-      ListEmptyComponent={
-        <EmptyState
-          icon="document-text-outline"
-          heading="Nenhum post cadastrado"
-          body="Crie seu primeiro post para começar."
-        />
-      }
-    />
+
+      <FlatList
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        data={posts}
+        keyExtractor={(item) => String(item.id)}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        renderItem={({ item }) => (
+          <View style={styles.row}>
+            <View style={styles.rowInfo}>
+              <Text style={styles.title} numberOfLines={2}>
+                {item.title}
+              </Text>
+              <Text style={styles.preview} numberOfLines={2}>
+                {item.content}
+              </Text>
+              <Text style={styles.author} numberOfLines={1}>
+                {item.author}
+              </Text>
+            </View>
+            {/* Ações à direita da linha, ícone destrutivo tintado: antes eram
+                dois links de texto no rodapé do card, com o mesmo peso visual. */}
+            <View style={styles.rowActions}>
+              <Pressable
+                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                onPress={() => navigation.navigate('PostForm', { id: item.id })}
+                accessibilityRole="button"
+                accessibilityLabel={`Editar post: ${item.title}`}
+              >
+                <Ionicons name="create-outline" size={20} color={colors.accent} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  styles.iconButtonDanger,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => confirmDelete(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Excluir post: ${item.title}`}
+              >
+                <Ionicons name="trash-outline" size={20} color={colors.destructive} />
+              </Pressable>
+            </View>
+          </View>
+        )}
+        ListEmptyComponent={
+          <EmptyState
+            icon="document-text-outline"
+            heading="Nenhum post publicado"
+            body="Publique a primeira leitura para os alunos."
+            actionLabel="Novo post"
+            onAction={() => navigation.navigate('PostForm')}
+          />
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.paper,
+  },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  toolbarEyebrow: {
+    ...typography.eyebrow,
+    color: colors.accent,
+  },
+  toolbarCount: {
+    ...typography.label,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  list: {
+    flex: 1,
     backgroundColor: colors.background,
   },
   listContent: {
-    paddingTop: spacing.lg,
     flexGrow: 1,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginLeft: spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
+  },
+  rowInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    ...typography.title,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.textPrimary,
+  },
+  preview: {
+    ...typography.label,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  author: {
+    ...typography.label,
+    color: colors.accent,
+    fontWeight: '600',
+    marginTop: spacing.sm,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentSoft,
+  },
+  iconButtonDanger: {
+    backgroundColor: colors.destructiveSoft,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.destructiveSoft,
+  },
+  bannerText: {
+    ...typography.label,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  bannerAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  bannerActionText: {
+    ...typography.button,
+    color: colors.destructive,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing['3xl'],
-  },
-  banner: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.destructive,
-  },
-  bannerText: {
-    ...typography.label,
-    color: colors.textPrimary,
-  },
-  bannerAction: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  bannerActionText: {
-    ...typography.button,
-    color: colors.accent,
-  },
-  buttonPressed: {
-    opacity: 0.72,
-  },
-  item: {
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: 8,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.textPrimary,
-  },
-  preview: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-  },
-  author: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    marginTop: spacing.sm,
-    gap: spacing.md,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    gap: spacing.xs,
-  },
-  editLabel: {
-    ...typography.label,
-    color: colors.accent,
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    gap: spacing.xs,
-  },
-  deleteLabel: {
-    ...typography.label,
-    color: colors.destructive,
+    backgroundColor: colors.paper,
+    paddingHorizontal: spacing.xl,
   },
 });

@@ -14,13 +14,27 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
+import PrimaryButton from '../../components/PrimaryButton';
 import { usePaginatedCrudList } from '../../hooks/usePaginatedCrudList';
 import { useAuth } from '../../contexts/AuthContext';
 import { confirmDestructiveAction } from '../../utils/dialogs';
 import { describeRequestError } from '../../utils/requestError';
-import { colors, spacing, typography } from '../../theme/tokens';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
 
 const PAGE_LIMIT = 10;
+
+function iniciais(nome) {
+  // Só palavras que começam com letra: "Professor Ficticio 12" virava "P1",
+  // misturando inicial com número de sequência.
+  const partes = String(nome ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter((parte) => /^\p{L}/u.test(parte));
+  if (partes.length === 0) return '?';
+  const primeira = partes[0][0];
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : partes[0][1] ?? '';
+  return (primeira + ultima).toUpperCase();
+}
 
 export default function CrudListScreen({
   navigation,
@@ -28,6 +42,7 @@ export default function CrudListScreen({
   formRoute,
   singular,
   plural,
+  criarLabel,
   emptyIcon,
   emptyHeading,
   emptyBody,
@@ -37,6 +52,7 @@ export default function CrudListScreen({
 }) {
   const {
     items,
+    total,
     loading,
     refreshing,
     isFetchingMore,
@@ -65,6 +81,10 @@ export default function CrudListScreen({
     });
     return unsubscribe;
   }, [loadFirstPage, navigation]);
+
+  function ehContaPropria(item) {
+    return user?.id !== undefined && String(user.id) === String(item.id);
+  }
 
   async function confirmDelete(item) {
     setActionError(null);
@@ -101,10 +121,6 @@ export default function CrudListScreen({
     navigation.navigate(formRoute, { id: item.id, nome: item.nome, email: item.email });
   }
 
-  function ehContaPropria(item) {
-    return user?.id !== undefined && String(user.id) === String(item.id);
-  }
-
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -134,16 +150,42 @@ export default function CrudListScreen({
       : null);
 
   return (
-    <>
+    <View style={styles.container}>
+      {/* A ação principal da tela era um "+" de 24px na barra de navegação, o
+          elemento menos visível do layout. Agora é um botão rotulado, junto da
+          contagem de registros. */}
+      <View style={styles.toolbar}>
+        <View>
+          <Text style={styles.toolbarEyebrow}>{plural.toUpperCase()}</Text>
+          <Text style={styles.toolbarCount}>
+            {/* Mostrava só o que estava carregado: "10 registros" com 14 no
+                servidor parecia que a lista tinha perdido gente. */}
+            {total > items.length
+              ? `${items.length} de ${total} carregados`
+              : `${total} ${total === 1 ? 'registro' : 'registros'}`}
+            {refreshing ? ' · atualizando' : ''}
+          </Text>
+        </View>
+        <PrimaryButton
+          label={criarLabel}
+          icon="add"
+          onPress={() => navigation.navigate(formRoute)}
+          accessibilityLabel={`Criar novo ${singular}`}
+        />
+      </View>
+
       {banner && (
-        <View
-          style={styles.banner}
-          accessibilityRole="alert"
-          accessibilityLiveRegion="polite"
-        >
+        <View style={styles.banner} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <Ionicons
+            name="alert-circle"
+            size={18}
+            color={colors.destructive}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
           <Text style={styles.bannerText}>{banner}</Text>
           <Pressable
-            style={({ pressed }) => [styles.bannerAction, pressed && styles.buttonPressed]}
+            style={({ pressed }) => [styles.bannerAction, pressed && styles.pressed]}
             onPress={() => {
               setActionError(null);
               reconcileFirstPage();
@@ -151,17 +193,19 @@ export default function CrudListScreen({
             accessibilityRole="button"
             accessibilityLabel={`Atualizar lista de ${plural}`}
           >
-            <Text style={styles.bannerActionText}>Atualizar lista</Text>
+            <Text style={styles.bannerActionText}>Atualizar</Text>
           </Pressable>
         </View>
       )}
+
       <FlatList
-        style={styles.container}
+        style={styles.list}
         contentContainerStyle={styles.listContent}
         data={items}
         keyExtractor={(item) => String(item.id)}
         onEndReached={() => loadMore()}
         onEndReachedThreshold={0.5}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListFooterComponent={
           isFetchingMore ? (
             <View style={styles.listFooter}>
@@ -171,7 +215,7 @@ export default function CrudListScreen({
             <View style={styles.listFooter} accessibilityRole="alert" accessibilityLiveRegion="polite">
               <Text style={styles.footerErrorText}>{`Não foi possível carregar mais ${plural}.`}</Text>
               <Pressable
-                style={({ pressed }) => [styles.footerRetryButton, pressed && styles.buttonPressed]}
+                style={({ pressed }) => [styles.footerRetryButton, pressed && styles.pressed]}
                 onPress={() => loadMore({ retry: true })}
                 accessibilityRole="button"
                 accessibilityLabel={`Tentar carregar mais ${plural} novamente`}
@@ -192,17 +236,31 @@ export default function CrudListScreen({
         renderItem={({ item }) => {
           const contaPropria = protegerContaPropria && ehContaPropria(item);
           return (
-            <View style={styles.item}>
-              <Text style={styles.nome} numberOfLines={1}>
-                {item.nome}
-                {contaPropria ? ' (você)' : ''}
-              </Text>
-              <Text style={styles.email} numberOfLines={1}>
-                {item.email}
-              </Text>
-              <View style={styles.actionsRow}>
+            <View style={styles.row}>
+              <View style={[styles.avatar, contaPropria && styles.avatarPropria]}>
+                <Text style={styles.avatarText}>{iniciais(item.nome)}</Text>
+              </View>
+              <View style={styles.rowInfo}>
+                <View style={styles.rowTitleLine}>
+                  <Text style={styles.nome} numberOfLines={1}>
+                    {item.nome}
+                  </Text>
+                  {contaPropria && (
+                    <View style={styles.chip}>
+                      <Text style={styles.chipText}>você</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.email} numberOfLines={1}>
+                  {item.email}
+                </Text>
+              </View>
+              {/* Ações à direita, na mesma linha do registro: antes ficavam no
+                  rodapé do card, em texto, com o destrutivo do mesmo peso do
+                  seguro. */}
+              <View style={styles.rowActions}>
                 <Pressable
-                  style={({ pressed }) => [styles.actionButton, pressed && styles.buttonPressed]}
+                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
                   onPress={() => abrirEdicao(item)}
                   disabled={refreshing}
                   accessibilityRole="button"
@@ -210,13 +268,14 @@ export default function CrudListScreen({
                   accessibilityState={{ disabled: refreshing }}
                 >
                   <Ionicons name="create-outline" size={20} color={colors.accent} />
-                  <Text style={styles.editLabel}>Editar</Text>
                 </Pressable>
-                {/* Auto-exclusão trancaria a área administrativa quando este for
-                    o único professor cadastrado. */}
                 {contaPropria ? null : (
                   <Pressable
-                    style={({ pressed }) => [styles.actionButton, pressed && styles.buttonPressed]}
+                    style={({ pressed }) => [
+                      styles.iconButton,
+                      styles.iconButtonDanger,
+                      pressed && styles.pressed,
+                    ]}
                     onPress={() => confirmDelete(item)}
                     disabled={refreshing}
                     accessibilityRole="button"
@@ -224,7 +283,6 @@ export default function CrudListScreen({
                     accessibilityState={{ disabled: refreshing }}
                   >
                     <Ionicons name="trash-outline" size={20} color={colors.destructive} />
-                    <Text style={styles.deleteLabel}>Excluir</Text>
                   </Pressable>
                 )}
               </View>
@@ -232,21 +290,153 @@ export default function CrudListScreen({
           );
         }}
         ListEmptyComponent={
-          <EmptyState icon={emptyIcon} heading={emptyHeading} body={emptyBody} />
+          <EmptyState
+            icon={emptyIcon}
+            heading={emptyHeading}
+            body={emptyBody}
+            actionLabel={criarLabel}
+            onAction={() => navigation.navigate(formRoute)}
+          />
         }
       />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.paper,
+  },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  toolbarEyebrow: {
+    ...typography.eyebrow,
+    color: colors.accent,
+  },
+  toolbarCount: {
+    ...typography.label,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  list: {
+    flex: 1,
     backgroundColor: colors.background,
   },
   listContent: {
-    paddingTop: spacing.lg,
     flexGrow: 1,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginLeft: spacing.md + 40 + spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarPropria: {
+    backgroundColor: colors.highlight,
+  },
+  avatarText: {
+    ...typography.label,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  rowInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  rowTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  nome: {
+    ...typography.heading,
+    color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  chip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+    borderRadius: radii.pill,
+    backgroundColor: colors.highlight,
+  },
+  chipText: {
+    ...typography.eyebrow,
+    fontSize: 10,
+    color: colors.textPrimary,
+  },
+  email: {
+    ...typography.label,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentSoft,
+  },
+  iconButtonDanger: {
+    backgroundColor: colors.destructiveSoft,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.destructiveSoft,
+  },
+  bannerText: {
+    ...typography.label,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  bannerAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  bannerActionText: {
+    ...typography.button,
+    color: colors.destructive,
   },
   listFooter: {
     alignItems: 'center',
@@ -268,72 +458,11 @@ const styles = StyleSheet.create({
     ...typography.button,
     color: colors.accent,
   },
-  banner: {
-    backgroundColor: colors.surface,
-    borderBottomColor: colors.destructive,
-    borderBottomWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  bannerText: {
-    ...typography.label,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  bannerAction: {
-    alignSelf: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  bannerActionText: {
-    ...typography.button,
-    color: colors.accent,
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing['3xl'],
-  },
-  buttonPressed: {
-    opacity: 0.72,
-  },
-  item: {
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: 8,
-  },
-  nome: {
-    ...typography.heading,
-    color: colors.textPrimary,
-  },
-  email: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    marginTop: spacing.sm,
-    gap: spacing.md,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    gap: spacing.xs,
-  },
-  editLabel: {
-    ...typography.label,
-    color: colors.accent,
-  },
-  deleteLabel: {
-    ...typography.label,
-    color: colors.destructive,
+    backgroundColor: colors.paper,
+    paddingHorizontal: spacing.xl,
   },
 });

@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, typography } from '../theme/tokens';
+import { Ionicons } from '@expo/vector-icons';
+import PrimaryButton from './PrimaryButton';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 // Bloco de erro compartilhado (lista pública, leitura, listas administrativas).
 // Antes cada tela repetia o mesmo markup e os mesmos estilos, e nenhuma delas
@@ -17,20 +19,26 @@ export default function ErrorState({
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
+      <View
+        style={styles.iconWell}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Ionicons name="cloud-offline-outline" size={26} color={colors.destructive} />
+      </View>
       <Text style={styles.text}>{message}</Text>
       {onRetry ? (
-        <Pressable
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        <PrimaryButton
+          label="Tentar novamente"
+          icon="refresh"
           onPress={onRetry}
-          accessibilityRole="button"
           accessibilityLabel={retryLabel}
-        >
-          <Text style={styles.buttonText}>{retryLabel}</Text>
-        </Pressable>
+          style={styles.action}
+        />
       ) : null}
       {secondaryLabel && onSecondary ? (
         <Pressable
-          style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
           onPress={onSecondary}
           accessibilityRole="button"
           accessibilityLabel={secondaryLabel}
@@ -49,38 +57,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xl,
   },
-  text: {
-    ...typography.body,
-    color: colors.textPrimary,
-    textAlign: 'center',
+  iconWell: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.pill,
+    backgroundColor: colors.destructiveSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
   },
-  button: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 10,
+  text: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 360,
   },
-  buttonText: {
-    ...typography.button,
-    color: colors.onAccent,
+  action: {
+    marginTop: spacing.lg,
   },
   secondaryButton: {
     minHeight: 44,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   secondaryButtonText: {
     ...typography.button,
-    color: colors.accent,
+    color: colors.textMuted,
   },
-  buttonPressed: {
-    opacity: 0.78,
+  pressed: {
+    opacity: 0.7,
   },
 });

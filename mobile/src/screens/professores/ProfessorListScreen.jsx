@@ -12,6 +12,7 @@ export default function ProfessorListScreen({ navigation }) {
       formRoute="ProfessorForm"
       singular="professor"
       plural="professores"
+      criarLabel="Novo professor"
       emptyIcon="person-outline"
       emptyHeading="Nenhum professor cadastrado"
       emptyBody="Cadastre o primeiro professor para começar."

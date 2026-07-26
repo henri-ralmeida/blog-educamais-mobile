@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '../theme/tokens';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const DESCRIPTION_LIMIT = 150;
 
@@ -11,8 +10,16 @@ function buildDescription(content) {
   return `${codePoints.slice(0, DESCRIPTION_LIMIT).join('')}…`;
 }
 
+function formatDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
 export default function PostCard({ post, onPress }) {
   const description = buildDescription(post.content);
+  const data = formatDate(post.createdAt);
 
   return (
     <Pressable
@@ -24,62 +31,52 @@ export default function PostCard({ post, onPress }) {
       accessibilityLabel={`Ler post: ${post.title}. Autor: ${post.author}. ${description}`}
       accessibilityHint="Abre o conteúdo completo do post"
     >
-      <View style={styles.authorRow}>
-        <Ionicons
-          name="ribbon"
-          size={12}
-          color={colors.textMuted}
-          style={styles.authorIcon}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        />
-        <Text style={styles.author} numberOfLines={1}>
-          {post.author}
+      {/* Faixa de marca-texto: identifica o item de leitura sem pesar o card. */}
+      <View style={styles.marker} />
+      <View style={styles.body}>
+        <Text style={styles.title} numberOfLines={2}>
+          {post.title}
         </Text>
+        <Text style={styles.description} numberOfLines={2}>
+          {description}
+        </Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.author} numberOfLines={1}>
+            {post.author}
+          </Text>
+          {data ? <Text style={styles.metaSeparator}>·</Text> : null}
+          {data ? <Text style={styles.date}>{data}</Text> : null}
+        </View>
       </View>
-      <Text style={styles.title} numberOfLines={2}>
-        {post.title}
-      </Text>
-      <Text style={styles.description} numberOfLines={3}>
-        {description}
-      </Text>
-      <Text style={styles.cta}>
-        Continuar leitura
-      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    flexDirection: 'row',
     minHeight: 44,
     backgroundColor: colors.background,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: spacing.sm,
+    overflow: 'hidden',
   },
   cardPressed: {
-    opacity: 0.86,
-    transform: [{ scale: 0.995 }],
+    backgroundColor: colors.surface,
   },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
+  marker: {
+    width: 4,
+    backgroundColor: colors.highlight,
   },
-  authorIcon: {
-    marginRight: 6,
-  },
-  author: {
-    ...typography.label,
-    color: colors.textMuted,
-    fontWeight: '500',
+  body: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
   },
   title: {
-    ...typography.heading,
+    ...typography.title,
     color: colors.textPrimary,
   },
   description: {
@@ -87,10 +84,24 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  cta: {
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  author: {
     ...typography.label,
     color: colors.accent,
     fontWeight: '600',
-    marginTop: spacing.md,
+    flexShrink: 1,
+  },
+  metaSeparator: {
+    ...typography.label,
+    color: colors.textMuted,
+  },
+  date: {
+    ...typography.label,
+    color: colors.textMuted,
   },
 });

@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -8,26 +10,49 @@ export const spacing = {
   '3xl': 64,
 };
 
+// Paleta de "caderno": papel quente, tinta escura, verde de lousa como ação e
+// amarelo de marca-texto como acento pontual. Evita o azul de template.
 export const colors = {
+  paper: '#FBFAF7',
   background: '#FFFFFF',
-  surface: '#F3F4F6',
-  border: '#DCE4ED',
-  accent: '#2563EB',
-  accentSoft: '#E8F0FE',
+  surface: '#F4F2EC',
+  border: '#E7E3DA',
+  accent: '#1B6B5A',
+  accentSoft: '#E4F0EC',
   onAccent: '#FFFFFF',
-  // Ações destrutivas (exclusão de post/professor/aluno) — ver 01-UI-SPEC.md.
-  destructive: '#DC2626',
-  textPrimary: '#111827',
-  textSecondary: '#374151',
-  textMuted: '#6B7280',
+  highlight: '#F2B705',
+  destructive: '#B3261E',
+  destructiveSoft: '#FBEAE8',
+  textPrimary: '#16202E',
+  textSecondary: '#3D4A5C',
+  textMuted: '#68758A',
 };
 
-// lineHeight já convertido para pixel absoluto (fontSize × ratio da 01-UI-SPEC.md),
-// pois React Native espera número absoluto, não razão unitless como CSS.
+// Serifada nos títulos (material de leitura), sans no corpo. Platform.select
+// evita passar uma pilha de fontes CSS para o runtime nativo, que não a entende.
+const displayFamily = Platform.select({
+  web: 'Georgia, "Iowan Old Style", "Times New Roman", serif',
+  ios: 'Georgia',
+  default: 'serif',
+});
+
+const bodyFamily = Platform.select({
+  web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  default: undefined,
+});
+
 export const typography = {
-  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
-  label: { fontSize: 13, fontWeight: '400', lineHeight: 18.2 },
-  heading: { fontSize: 20, fontWeight: '600', lineHeight: 25 },
-  button: { fontSize: 16, fontWeight: '600', lineHeight: 24 },
-  display: { fontSize: 24, fontWeight: '600', lineHeight: 28.8 },
+  display: { fontFamily: displayFamily, fontSize: 28, fontWeight: '600', lineHeight: 34 },
+  title: { fontFamily: displayFamily, fontSize: 21, fontWeight: '600', lineHeight: 27 },
+  heading: { fontFamily: bodyFamily, fontSize: 17, fontWeight: '600', lineHeight: 23 },
+  body: { fontFamily: bodyFamily, fontSize: 16, fontWeight: '400', lineHeight: 24 },
+  label: { fontFamily: bodyFamily, fontSize: 13, fontWeight: '400', lineHeight: 18 },
+  eyebrow: { fontFamily: bodyFamily, fontSize: 11, fontWeight: '700', lineHeight: 16, letterSpacing: 1.4 },
+  button: { fontFamily: bodyFamily, fontSize: 15, fontWeight: '600', lineHeight: 20 },
+};
+
+export const radii = {
+  sm: 6,
+  md: 10,
+  pill: 999,
 };

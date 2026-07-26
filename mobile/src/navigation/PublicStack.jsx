@@ -1,9 +1,10 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import PostDetailScreen from '../screens/posts/PostDetailScreen';
 import PostListScreen from '../screens/posts/PostListScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
-import { colors, spacing, typography } from '../theme/tokens';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const Stack = createNativeStackNavigator();
 
@@ -12,14 +13,14 @@ export default function PublicStack() {
     <Stack.Navigator
       screenOptions={{
         headerTitleStyle: {
-          ...typography.heading,
+          ...typography.title,
           color: colors.textPrimary,
         },
         headerTintColor: colors.accent,
-        headerTitleAlign: 'center',
+        headerTitleAlign: 'left',
         headerShadowVisible: false,
         headerStyle: {
-          backgroundColor: colors.background,
+          backgroundColor: colors.paper,
         },
       }}
     >
@@ -37,6 +38,13 @@ export default function PublicStack() {
               accessibilityHint="Abre a tela de login do professor"
               hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
             >
+              <Ionicons
+                name="lock-closed-outline"
+                size={15}
+                color={colors.accent}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
               <Text style={styles.loginButtonText}>Entrar</Text>
             </Pressable>
           ),
@@ -58,14 +66,17 @@ export default function PublicStack() {
 
 const styles = StyleSheet.create({
   loginButton: {
-    minHeight: 40,
-    minWidth: 44,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xs,
+    minHeight: 40,
+    minWidth: 44,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
-    borderRadius: 10,
-    backgroundColor: colors.accentSoft,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.accent,
     marginRight: spacing.sm,
   },
   loginButtonPressed: {
