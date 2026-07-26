@@ -33,6 +33,30 @@ Serviços disponíveis:
 
 O serviço mobile executa Expo Web com Fast Refresh. O código-fonte fica montado no container; alterações salvas em `mobile/` são recarregadas no navegador. A variável `EXPO_PUBLIC_API_URL` aponta o bundle web para `http://localhost:3000`. O backend inicia em modo de produção e aceita somente as origens exatas definidas por `CORS_ORIGIN`. O `.env.example` usa `http://localhost:8081` para o app web do Compose.
 
+### Bootstrap seguro do primeiro professor
+
+O cadastro REST de professores continua protegido: somente um professor autenticado pode cadastrar outros professores. Em banco novo, crie o primeiro professor pelo seed administrativo explícito:
+
+```bash
+# na raiz, com os serviços db e backend já ativos
+INITIAL_TEACHER_NAME="Professor Inicial" \
+INITIAL_TEACHER_EMAIL="professor@example.com" \
+INITIAL_TEACHER_PASSWORD="troque-por-uma-senha-forte" \
+docker compose exec -T -e INITIAL_TEACHER_NAME -e INITIAL_TEACHER_EMAIL \
+  -e INITIAL_TEACHER_PASSWORD backend npx prisma db seed
+```
+
+Fora do Docker, execute o equivalente no diretório `backend`:
+
+```bash
+INITIAL_TEACHER_NAME="Professor Inicial" \
+INITIAL_TEACHER_EMAIL="professor@example.com" \
+INITIAL_TEACHER_PASSWORD="troque-por-uma-senha-forte" \
+npx prisma db seed
+```
+
+As três variáveis são obrigatórias. O comando falha sem qualquer uma delas. A senha é persistida somente como hash bcrypt. O seed é idempotente: se já houver professor, não cria nem altera contas. Ele não roda no boot do backend nem em `docker compose up`.
+
 Para parar sem apagar dados do UAT:
 
 ```bash
@@ -134,6 +158,7 @@ src/
 - `JWT_SECRET` é obrigatório no boot e precisa ter pelo menos 32 caracteres. `JWT_EXPIRES_IN` usa `8h` por padrão.
 - `CORS_ORIGIN` é obrigatório. Produção aceita somente as origens exatas configuradas e nunca wildcard. Desenvolvimento também permite `localhost:5173`, `localhost:8081` e URLs `exp://` em loopback/LAN.
 - O token fica no `AsyncStorage` para sobreviver a reaberturas. Não há refresh token; após expiração, a resposta `401` encerra a sessão e exige novo login.
+- A identidade atual do professor é revalidada a cada requisição protegida. Se o professor for excluído, seu token ainda assinado passa a retornar `401` imediatamente, antes de qualquer mutação.
 - Sem HTTPS — ambiente acadêmico local/dev. Uma implantação pública deve terminar TLS antes de transmitir credenciais ou tokens.
 
 ---
