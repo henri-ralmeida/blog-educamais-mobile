@@ -3,8 +3,7 @@ const bcrypt = require("bcryptjs");
 const {
   createProfessorSchema,
 } = require("../src/modules/professores/professor.validators");
-
-const SALT_ROUNDS = 10;
+const { BCRYPT_SALT_ROUNDS } = require("../src/config/security");
 const PUBLIC_PROFESSOR_SELECT = {
   id: true,
   nome: true,
@@ -55,7 +54,7 @@ async function seedInitialTeacher({
           return { created: false };
         }
 
-        const senhaHash = await hashPassword(initialTeacher.senha, SALT_ROUNDS);
+        const senhaHash = await hashPassword(initialTeacher.senha, BCRYPT_SALT_ROUNDS);
         const professor = await transaction.professor.create({
           data: {
             nome: initialTeacher.nome,

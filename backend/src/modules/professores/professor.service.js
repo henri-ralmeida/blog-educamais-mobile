@@ -1,20 +1,21 @@
 const bcrypt = require("bcryptjs");
 const prisma = require("../../config/prisma");
+const { BCRYPT_SALT_ROUNDS } = require("../../config/security");
 
-const SALT_ROUNDS = 10;
-
-function omitCredenciais(professor) {
-  if (!professor) return professor;
-  const { senha: _senha, tokenVersion: _tokenVersion, ...rest } = professor;
-  return rest;
-}
+const PUBLIC_PROFESSOR_SELECT = {
+  id: true,
+  nome: true,
+  email: true,
+  createdAt: true,
+  updatedAt: true,
+};
 
 async function createProfessor(data) {
-  const senhaHash = await bcrypt.hash(data.senha, SALT_ROUNDS);
-  const professor = await prisma.professor.create({
+  const senhaHash = await bcrypt.hash(data.senha, BCRYPT_SALT_ROUNDS);
+  return prisma.professor.create({
     data: { ...data, email: data.email.trim().toLowerCase(), senha: senhaHash },
+    select: PUBLIC_PROFESSOR_SELECT,
   });
-  return omitCredenciais(professor);
 }
 
 async function listProfessores({ page = 1, limit = 10 } = {}) {
@@ -27,12 +28,13 @@ async function listProfessores({ page = 1, limit = 10 } = {}) {
       skip,
       take: currentLimit,
       orderBy: { createdAt: "desc" },
+      select: PUBLIC_PROFESSOR_SELECT,
     }),
     prisma.professor.count(),
   ]);
 
   return {
-    data: data.map(omitCredenciais),
+    data,
     total,
     page: currentPage,
     limit: currentLimit,
@@ -47,14 +49,14 @@ async function updateProfessor(id, data) {
   if (payload.senha === "") {
     delete payload.senha;
   } else if (payload.senha !== undefined) {
-    payload.senha = await bcrypt.hash(payload.senha, SALT_ROUNDS);
+    payload.senha = await bcrypt.hash(payload.senha, BCRYPT_SALT_ROUNDS);
     payload.tokenVersion = { increment: 1 };
   }
-  const professor = await prisma.professor.update({
+  return prisma.professor.update({
     where: { id },
     data: payload,
+    select: PUBLIC_PROFESSOR_SELECT,
   });
-  return omitCredenciais(professor);
 }
 
 async function deleteProfessor(id) {
