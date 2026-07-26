@@ -71,11 +71,17 @@ function loadConfig(env = process.env) {
     throw new Error(`JWT_SECRET deve ter ao menos ${MINIMUM_JWT_SECRET_LENGTH} caracteres`);
   }
 
+  const rateLimitSecret = requireEnvironmentValue(env, "RATE_LIMIT_SECRET");
+  if (rateLimitSecret.length < MINIMUM_JWT_SECRET_LENGTH) {
+    throw new Error(`RATE_LIMIT_SECRET deve ter ao menos ${MINIMUM_JWT_SECRET_LENGTH} caracteres`);
+  }
+
   const corsOrigin = requireEnvironmentValue(env, "CORS_ORIGIN");
 
   return Object.freeze({
     nodeEnv: env.NODE_ENV?.trim() || "development",
     jwtSecret,
+    rateLimitSecret,
     jwtExpiresIn: parseJwtExpiresIn(env.JWT_EXPIRES_IN),
     corsOrigins: Object.freeze(parseCorsOrigins(corsOrigin)),
   });

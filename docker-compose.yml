@@ -30,6 +30,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-blogdb}?schema=public
       JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET com pelo menos 32 caracteres}
+      RATE_LIMIT_SECRET: ${RATE_LIMIT_SECRET:?Defina RATE_LIMIT_SECRET com pelo menos 32 caracteres}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       CORS_ORIGIN: ${CORS_ORIGIN:?Defina CORS_ORIGIN sem wildcard}
     ports:
