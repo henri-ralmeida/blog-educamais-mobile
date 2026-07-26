@@ -47,6 +47,9 @@ export default function PostListScreen({ navigation }) {
       clearTimeout(loadMoreTimeoutRef.current);
       loadMoreTimeoutRef.current = null;
       setIsLoadingMore(false);
+      // A busca cancelou o carregamento local; libera a trava que seria limpa
+      // pelo callback do timeout cancelado.
+      endReachedLockRef.current = false;
     }
     setHasError(false);
     return postsService
@@ -75,7 +78,11 @@ export default function PostListScreen({ navigation }) {
     if (loadMoreTimeoutRef.current) clearTimeout(loadMoreTimeoutRef.current);
   }, []);
 
+  // Paginação local: todos os posts já vieram da busca; onEndReached só aumenta
+  // o slice visível, sem nova requisição ao servidor.
   function handleEndReached() {
+    // A ref bloqueia reentradas no mesmo ciclo e é liberada ao concluir/cancelar
+    // o carregamento local, sem depender de momentum.
     if (endReachedLockRef.current || visibleCount >= allPosts.length) return;
     endReachedLockRef.current = true;
     setIsLoadingMore(true);
@@ -83,11 +90,8 @@ export default function PostListScreen({ navigation }) {
       setVisibleCount((c) => Math.min(c + PAGE_SIZE, allPosts.length));
       setIsLoadingMore(false);
       loadMoreTimeoutRef.current = null;
+      endReachedLockRef.current = false;
     }, 120);
-  }
-
-  function handleMomentumScrollBegin() {
-    endReachedLockRef.current = false;
   }
 
   function handleRefresh() {
@@ -159,7 +163,6 @@ export default function PostListScreen({ navigation }) {
       )}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
-      onMomentumScrollBegin={handleMomentumScrollBegin}
       ListFooterComponent={
         isLoadingMore ? (
           <ActivityIndicator

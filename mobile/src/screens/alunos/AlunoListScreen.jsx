@@ -58,7 +58,28 @@ export default function AlunoListScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
+  // Após excluir, volta à página 1 e usa o total devolvido pelo servidor. A
+  // redução local mantém a interface coerente caso essa reconciliação falhe.
+  function reconcileFirstPage(deletedId) {
+    setItems((current) => current.filter((item) => item.id !== deletedId).slice(0, PAGE_LIMIT));
+    setTotal((current) => Math.max(0, current - 1));
+    setPage(1);
+
+    return alunosService
+      .list({ page: 1, limit: PAGE_LIMIT })
+      .then((res) => {
+        setItems(res.data);
+        setTotal(res.total);
+        setPage(1);
+      })
+      .catch(() => {
+        // Mantém a primeira página reconciliada localmente; o próximo foco tenta de novo.
+      });
+  }
+
   function handleEndReached() {
+    // A ref bloqueia reentradas no mesmo ciclo, antes de isFetchingMore renderizar.
+    // A liberação ocorre somente quando a requisição termina.
     if (endReachedLockRef.current || isFetchingMore || !hasMore) return;
     endReachedLockRef.current = true;
     setIsFetchingMore(true);
@@ -72,11 +93,10 @@ export default function AlunoListScreen({ navigation }) {
       .catch(() => {
         // Falha ao buscar próxima página: mantém lista atual, permite retry no próximo scroll.
       })
-      .finally(() => setIsFetchingMore(false));
-  }
-
-  function handleMomentumScrollBegin() {
-    endReachedLockRef.current = false;
+      .finally(() => {
+        endReachedLockRef.current = false;
+        setIsFetchingMore(false);
+      });
   }
 
   function confirmDelete(aluno) {
@@ -96,15 +116,11 @@ export default function AlunoListScreen({ navigation }) {
 
   function handleDelete(aluno) {
     alunosService.remove(aluno.id)
-      .then(() => {
-        setItems((current) => current.filter((a) => a.id !== aluno.id));
-        setTotal((t) => Math.max(0, t - 1));
-      })
+      .then(() => reconcileFirstPage(aluno.id))
       .catch((err) => {
-        // 404: aluno já não existe, que era o objetivo — sucesso silencioso.
+        // 404: aluno já não existe, que era o objetivo — reconcilia mesmo assim.
         if (err?.response?.status === 404) {
-          setItems((current) => current.filter((a) => a.id !== aluno.id));
-          setTotal((t) => Math.max(0, t - 1));
+          reconcileFirstPage(aluno.id);
           return;
         }
         Alert.alert('Erro', 'Não foi possível excluir o aluno. Tente novamente.');
@@ -145,7 +161,6 @@ export default function AlunoListScreen({ navigation }) {
       keyExtractor={(item) => String(item.id)}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
-      onMomentumScrollBegin={handleMomentumScrollBegin}
       ListFooterComponent={
         isFetchingMore ? (
           <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando mais alunos" />

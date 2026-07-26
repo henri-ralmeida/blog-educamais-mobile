@@ -14,6 +14,10 @@ export default function SearchBar({ value, onChangeText, placeholder = 'Buscar p
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
+        // Cor do placeholder com contraste WCAG AA (>=4.5:1) contra o fundo branco
+        // (textMuted #6B7280 sobre background #FFFFFF ~= 4.83:1). O fundo permanece
+        // branco também no foco, evitando a queda de contraste que acontecia quando o
+        // fundo mudava para accentSoft (#E8F0FE ~= 4.22:1, abaixo do mínimo).
         placeholderTextColor={colors.textMuted}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -37,9 +41,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     paddingHorizontal: spacing.md,
   },
+  // No foco apenas realça a borda (accent => contraste 5.17:1 sobre branco); o fundo
+  // permanece branco para preservar o contraste do placeholder (ver comentário acima).
   containerFocused: {
     borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
   },
   icon: {
     marginRight: spacing.sm,
