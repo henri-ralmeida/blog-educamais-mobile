@@ -5,9 +5,11 @@
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, Pressable } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
+import FieldError from '../../components/FieldError';
 import { professoresService } from '../../services/professoresService';
+import { describeRequestError } from '../../utils/requestError';
 import { colors, spacing, typography } from '../../theme/tokens';
-import { emailRule } from '../../utils/validators';
+import { emailRule, nomeRule, senhaRules } from '../../utils/validators';
 
 export default function ProfessorFormScreen({ route, navigation }) {
   const id = route.params?.id;
@@ -31,7 +33,7 @@ export default function ProfessorFormScreen({ route, navigation }) {
     setSubmitError(null);
     // Na edição, somente a string realmente vazia mantém a senha atual. Qualquer senha
     // válida segue no payload sem trim nem outra normalização.
-    const payload = { nome: data.nome, email: data.email };
+    const payload = { nome: data.nome.trim(), email: data.email.trim() };
     if (!isEditMode || data.senha !== '') {
       payload.senha = data.senha;
     }
@@ -43,12 +45,9 @@ export default function ProfessorFormScreen({ route, navigation }) {
         navigation.goBack();
       })
       .catch((err) => {
-        const status = err?.response?.status;
-        if (status >= 400 && status < 500) {
-          setSubmitError('Dados inválidos. Verifique os campos e tente novamente.');
-        } else {
-          setSubmitError('Não foi possível salvar o professor. Verifique sua conexão e tente novamente.');
-        }
+        // A faixa 4xx generica apagava o 409 de email ja cadastrado, o 404 de
+        // registro removido e o 401 de sessao revogada.
+        setSubmitError(describeRequestError(err).message);
       });
   }
 
@@ -58,7 +57,7 @@ export default function ProfessorFormScreen({ route, navigation }) {
       <Controller
         control={control}
         name="nome"
-        rules={{ required: 'Nome obrigatório' }}
+        rules={nomeRule}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}
@@ -71,7 +70,7 @@ export default function ProfessorFormScreen({ route, navigation }) {
           />
         )}
       />
-      {errors.nome && <Text style={styles.errorText}>{errors.nome.message}</Text>}
+      <FieldError>{errors.nome?.message}</FieldError>
 
       <Text style={[styles.label, styles.fieldSpacing]}>Email</Text>
       <Controller
@@ -93,32 +92,13 @@ export default function ProfessorFormScreen({ route, navigation }) {
           />
         )}
       />
-      {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+      <FieldError>{errors.email?.message}</FieldError>
 
       <Text style={[styles.label, styles.fieldSpacing]}>Senha</Text>
       <Controller
         control={control}
         name="senha"
-        rules={
-          isEditMode
-            ? {
-                validate: {
-                  notBlank: (v) =>
-                    v === '' || !/^\s+$/u.test(v) || 'Senha não pode conter apenas espaços',
-                  minLength: (v) =>
-                    v === '' || v.length >= 6 || 'Senha deve ter ao menos 6 caracteres',
-                },
-              }
-            : {
-                required: 'Senha obrigatória',
-                validate: {
-                  notBlank: (v) =>
-                    !/^\s+$/u.test(v) || 'Senha não pode conter apenas espaços',
-                  minLength: (v) =>
-                    v.length >= 6 || 'Senha deve ter ao menos 6 caracteres',
-                },
-              }
-        }
+        rules={senhaRules({ obrigatoria: !isEditMode })}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}
@@ -135,9 +115,9 @@ export default function ProfessorFormScreen({ route, navigation }) {
           />
         )}
       />
-      {errors.senha && <Text style={styles.errorText}>{errors.senha.message}</Text>}
+      <FieldError>{errors.senha?.message}</FieldError>
 
-      {submitError && <Text style={[styles.errorText, styles.submitError]}>{submitError}</Text>}
+      <FieldError style={styles.submitError}>{submitError}</FieldError>
 
       <Pressable
         style={({ pressed }) => [

@@ -6,9 +6,11 @@
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, Pressable } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
+import FieldError from '../../components/FieldError';
 import { alunosService } from '../../services/alunosService';
+import { describeRequestError } from '../../utils/requestError';
 import { colors, spacing, typography } from '../../theme/tokens';
-import { emailRule } from '../../utils/validators';
+import { emailRule, nomeRule } from '../../utils/validators';
 
 export default function AlunoFormScreen({ route, navigation }) {
   const id = route.params?.id;
@@ -30,7 +32,7 @@ export default function AlunoFormScreen({ route, navigation }) {
   function onSubmit(data) {
     setSubmitError(null);
     // Payload sempre completo — nunca PUT parcial.
-    const payload = { nome: data.nome, email: data.email };
+    const payload = { nome: data.nome.trim(), email: data.email.trim() };
     const request = isEditMode
       ? alunosService.update(id, payload)
       : alunosService.create(payload);
@@ -39,12 +41,9 @@ export default function AlunoFormScreen({ route, navigation }) {
         navigation.goBack();
       })
       .catch((err) => {
-        const status = err?.response?.status;
-        if (status >= 400 && status < 500) {
-          setSubmitError('Dados inválidos. Verifique os campos e tente novamente.');
-        } else {
-          setSubmitError('Não foi possível salvar o aluno. Verifique sua conexão e tente novamente.');
-        }
+        // A faixa 4xx generica apagava o 409 de email ja cadastrado e o 404 de
+        // registro removido enquanto a tela estava aberta.
+        setSubmitError(describeRequestError(err).message);
       });
   }
 
@@ -54,7 +53,7 @@ export default function AlunoFormScreen({ route, navigation }) {
       <Controller
         control={control}
         name="nome"
-        rules={{ required: 'Nome obrigatório' }}
+        rules={nomeRule}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={styles.input}
@@ -67,7 +66,7 @@ export default function AlunoFormScreen({ route, navigation }) {
           />
         )}
       />
-      {errors.nome && <Text style={styles.errorText}>{errors.nome.message}</Text>}
+      <FieldError>{errors.nome?.message}</FieldError>
 
       <Text style={[styles.label, styles.fieldSpacing]}>Email</Text>
       <Controller
@@ -89,9 +88,9 @@ export default function AlunoFormScreen({ route, navigation }) {
           />
         )}
       />
-      {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+      <FieldError>{errors.email?.message}</FieldError>
 
-      {submitError && <Text style={[styles.errorText, styles.submitError]}>{submitError}</Text>}
+      <FieldError style={styles.submitError}>{submitError}</FieldError>
 
       <Pressable
         style={({ pressed }) => [

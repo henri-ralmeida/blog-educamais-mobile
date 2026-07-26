@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { describeRequestError } from '../utils/requestError';
 
 export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
   const [items, setItems] = useState([]);
@@ -6,7 +7,7 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [reconciliationError, setReconciliationError] = useState(false);
 
@@ -14,6 +15,7 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
   const requestGenerationRef = useRef(0);
   const endReachedLockRef = useRef(false);
   const nextPageRef = useRef(2);
+  const exhaustedRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -35,7 +37,7 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
     if (showLoading) setLoading(true);
     if (showRefreshing) setRefreshing(true);
     if (reconciliation) setReconciliationError(false);
-    else setHasError(false);
+    else setErrorMessage(null);
 
     try {
       const res = await service.list({ page: 1, limit: pageLimit });
@@ -43,13 +45,14 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
       setItems(res.data);
       setTotal(res.total);
       nextPageRef.current = 2;
-      setHasError(false);
+      exhaustedRef.current = res.data.length < pageLimit;
+      setErrorMessage(null);
       setReconciliationError(false);
       return true;
-    } catch {
+    } catch (error) {
       if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return false;
       if (reconciliation) setReconciliationError(true);
-      else setHasError(true);
+      else setErrorMessage(describeRequestError(error).message);
       return false;
     } finally {
       if (mountedRef.current && requestGeneration === requestGenerationRef.current) {
@@ -71,8 +74,9 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
   const loadMore = useCallback(({ retry = false } = {}) => {
     if (
       endReachedLockRef.current
+      || exhaustedRef.current
       || items.length >= total
-      || hasError
+      || errorMessage
       || reconciliationError
       || (loadMoreError && !retry)
     ) return;
@@ -85,9 +89,18 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
     service.list({ page: nextPage, limit: pageLimit })
       .then((res) => {
         if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return;
-        setItems((current) => [...current, ...res.data]);
+        // Paginação por offset com escrita concorrente repetia registros entre
+        // páginas, e a chave duplicada quebrava o keyExtractor da FlatList.
+        setItems((current) => {
+          const vistos = new Set(current.map((item) => String(item.id)));
+          const novos = res.data.filter((item) => !vistos.has(String(item.id)));
+          return novos.length === 0 ? current : [...current, ...novos];
+        });
         setTotal(res.total);
         nextPageRef.current = nextPage + 1;
+        // Página vazia (ou menor que o limite) encerra a paginação mesmo quando
+        // o total do servidor está adiantado em relação ao que já foi lido.
+        if (res.data.length === 0 || res.data.length < pageLimit) exhaustedRef.current = true;
       })
       .catch(() => {
         if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return;
@@ -98,7 +111,7 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
         endReachedLockRef.current = false;
         setIsFetchingMore(false);
       });
-  }, [hasError, items.length, loadMoreError, pageLimit, reconciliationError, service, total]);
+  }, [errorMessage, items.length, loadMoreError, pageLimit, reconciliationError, service, total]);
 
   const reconcileFirstPage = useCallback(() => (
     loadFirstPage({ reconciliation: true })
@@ -109,7 +122,7 @@ export function usePaginatedCrudList(service, { pageLimit = 10 } = {}) {
     loading,
     refreshing,
     isFetchingMore,
-    hasError,
+    errorMessage,
     loadMoreError,
     reconciliationError,
     loadFirstPage,
