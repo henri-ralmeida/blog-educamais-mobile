@@ -1,8 +1,5 @@
-// Listagem paginada real de professores — espelha a estrutura de
-// PostAdminListScreen.jsx (guarda cancelled/retryKey/listener de focus), mas com
-// paginação real no servidor via infinite scroll, diferente
-// de posts (que não pagina).
-import { useCallback, useEffect, useRef, useState } from 'react';
+// Listagem paginada real de professores, com paginação no servidor.
+import { useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,70 +12,28 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import EmptyState from '../../components/EmptyState';
+import { usePaginatedCrudList } from '../../hooks/usePaginatedCrudList';
 import { professoresService } from '../../services/professoresService';
 import { colors, spacing, typography } from '../../theme/tokens';
 
 const PAGE_LIMIT = 10;
 
 export default function ProfessorListScreen({ navigation }) {
-  const [items, setItems] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [hasError, setHasError] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
+  const {
+    items,
+    loading,
+    refreshing,
+    isFetchingMore,
+    hasError,
+    loadMoreError,
+    reconciliationError,
+    loadFirstPage,
+    refresh,
+    loadMore,
+    reconcileFirstPage,
+  } = usePaginatedCrudList(professoresService, { pageLimit: PAGE_LIMIT });
 
-  const hasMore = items.length < total;
-  const mountedRef = useRef(true);
-  const requestGenerationRef = useRef(0);
-  const endReachedLockRef = useRef(false);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      requestGenerationRef.current += 1;
-    };
-  }, []);
-
-  const loadFirstPage = useCallback(async ({ showLoading = false, showRefreshing = false } = {}) => {
-    const requestGeneration = ++requestGenerationRef.current;
-    endReachedLockRef.current = true;
-    setIsFetchingMore(false);
-    if (showLoading) setLoading(true);
-    if (showRefreshing) setRefreshing(true);
-    setHasError(false);
-
-    try {
-      const res = await professoresService.list({ page: 1, limit: PAGE_LIMIT });
-      if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return false;
-      setItems(res.data);
-      setTotal(res.total);
-      setPage(1);
-      return true;
-    } catch {
-      if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return false;
-      setHasError(true);
-      setPage(1);
-      return false;
-    } finally {
-      if (mountedRef.current && requestGeneration === requestGenerationRef.current) {
-        endReachedLockRef.current = false;
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, []);
-
-  // Reseta para a primeira página a cada retryKey (também cobre o recarregamento ao
-  // voltar de criar/editar/excluir, via o listener de focus abaixo).
-  useEffect(() => {
-    loadFirstPage({ showLoading: true });
-  }, [loadFirstPage, retryKey]);
-
-  // Ignora o primeiro evento de foco (montagem inicial), já coberto pelo useEffect acima.
+  // Ignora o primeiro evento de foco, já coberto pelo carregamento inicial do hook.
   const isFirstFocus = useRef(true);
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -92,36 +47,15 @@ export default function ProfessorListScreen({ navigation }) {
   }, [loadFirstPage, navigation]);
 
   function handleRefresh() {
-    loadFirstPage({ showRefreshing: true });
-  }
-
-  async function reconcileFirstPage() {
-    // Invalida qualquer próxima página em voo antes de buscar a fonte de verdade.
-    await loadFirstPage();
+    refresh();
   }
 
   function handleEndReached() {
-    // A ref bloqueia reentradas no mesmo ciclo, antes de isFetchingMore renderizar.
-    if (endReachedLockRef.current || isFetchingMore || !hasMore || hasError) return;
-    endReachedLockRef.current = true;
-    setIsFetchingMore(true);
-    const nextPage = page + 1;
-    const requestGeneration = requestGenerationRef.current;
-    professoresService.list({ page: nextPage, limit: PAGE_LIMIT })
-      .then((res) => {
-        if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return;
-        setItems((current) => [...current, ...res.data]);
-        setTotal(res.total);
-        setPage(nextPage);
-      })
-      .catch(() => {
-        // Falha ao buscar próxima página: mantém lista e offset atuais.
-      })
-      .finally(() => {
-        if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return;
-        endReachedLockRef.current = false;
-        setIsFetchingMore(false);
-      });
+    loadMore();
+  }
+
+  function retryLoadMore() {
+    loadMore({ retry: true });
   }
 
   function confirmDelete(professor) {
@@ -139,17 +73,18 @@ export default function ProfessorListScreen({ navigation }) {
     );
   }
 
-  function handleDelete(professor) {
-    professoresService.remove(professor.id)
-      .then(() => reconcileFirstPage())
-      .catch((err) => {
-        // 404: professor já não existe, que era o objetivo — reconcilia mesmo assim.
-        if (err?.response?.status === 404) {
-          reconcileFirstPage();
-          return;
-        }
+  async function handleDelete(professor) {
+    try {
+      await professoresService.remove(professor.id);
+    } catch (err) {
+      // 404: professor já não existe, que era o objetivo — reconcilia mesmo assim.
+      if (err?.response?.status !== 404) {
         Alert.alert('Erro', 'Não foi possível excluir o professor. Tente novamente.');
-      });
+        return;
+      }
+    }
+
+    await reconcileFirstPage();
   }
 
   if (loading) {
@@ -168,7 +103,7 @@ export default function ProfessorListScreen({ navigation }) {
         </Text>
         <Pressable
           style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
-          onPress={() => setRetryKey((k) => k + 1)}
+          onPress={() => loadFirstPage({ showLoading: true })}
           accessibilityRole="button"
           accessibilityLabel="Tentar carregar os professores novamente"
         >
@@ -179,16 +114,46 @@ export default function ProfessorListScreen({ navigation }) {
   }
 
   return (
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.listContent}
-      data={items}
-      keyExtractor={(item) => String(item.id)}
-      onEndReached={handleEndReached}
-      onEndReachedThreshold={0.5}
-      ListFooterComponent={
+    <>
+      {reconciliationError && (
+        <View style={styles.reconciliationBanner} accessibilityLiveRegion="polite">
+          <Text style={styles.reconciliationText}>
+            Professor excluído, mas não foi possível atualizar a lista.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.reconciliationRetry, pressed && styles.buttonPressed]}
+            onPress={() => reconcileFirstPage()}
+            accessibilityRole="button"
+            accessibilityLabel="Atualizar lista de professores novamente"
+          >
+            <Text style={styles.reconciliationRetryText}>Atualizar lista</Text>
+          </Pressable>
+        </View>
+      )}
+      <FlatList
+        style={styles.container}
+        contentContainerStyle={styles.listContent}
+        data={items}
+        keyExtractor={(item) => String(item.id)}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
         isFetchingMore ? (
-          <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando mais professores" />
+          <View style={styles.listFooter}>
+            <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando mais professores" />
+          </View>
+        ) : loadMoreError ? (
+          <View style={styles.listFooter} accessibilityLiveRegion="polite">
+            <Text style={styles.footerErrorText}>Não foi possível carregar mais professores.</Text>
+            <Pressable
+              style={({ pressed }) => [styles.footerRetryButton, pressed && styles.buttonPressed]}
+              onPress={retryLoadMore}
+              accessibilityRole="button"
+              accessibilityLabel="Tentar carregar mais professores novamente"
+            >
+              <Text style={styles.footerRetryText}>Tentar novamente</Text>
+            </Pressable>
+          </View>
         ) : null
       }
       refreshControl={
@@ -238,7 +203,8 @@ export default function ProfessorListScreen({ navigation }) {
           body="Cadastre o primeiro professor para começar."
         />
       }
-    />
+      />
+    </>
   );
 }
 
@@ -250,6 +216,48 @@ const styles = StyleSheet.create({
   listContent: {
     paddingTop: spacing.lg,
     flexGrow: 1,
+  },
+  listFooter: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+  },
+  footerErrorText: {
+    ...typography.label,
+    color: colors.destructive,
+    textAlign: 'center',
+  },
+  footerRetryButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.xs,
+  },
+  footerRetryText: {
+    ...typography.button,
+    color: colors.accent,
+  },
+  reconciliationBanner: {
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.destructive,
+    borderBottomWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  reconciliationText: {
+    ...typography.label,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  reconciliationRetry: {
+    alignSelf: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  reconciliationRetryText: {
+    ...typography.button,
+    color: colors.accent,
   },
   centered: {
     flex: 1,
