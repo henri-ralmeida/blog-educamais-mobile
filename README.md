@@ -19,6 +19,8 @@ Banco, backend e versão web do app mobile sobem juntos:
 
 ```bash
 # na raiz deste repositório
+cp .env.example .env
+# edite .env e troque JWT_SECRET por um segredo aleatório com 32+ caracteres
 docker compose up --build
 ```
 
@@ -29,7 +31,7 @@ Serviços disponíveis:
 - Health check: `http://localhost:3000/health`
 - PostgreSQL: `localhost:55432`
 
-O serviço mobile executa Expo Web com Fast Refresh. O código-fonte fica montado no container; alterações salvas em `mobile/` são recarregadas no navegador. A variável `EXPO_PUBLIC_API_URL` aponta o bundle web para `http://localhost:3000`.
+O serviço mobile executa Expo Web com Fast Refresh. O código-fonte fica montado no container; alterações salvas em `mobile/` são recarregadas no navegador. A variável `EXPO_PUBLIC_API_URL` aponta o bundle web para `http://localhost:3000`. O backend inicia em modo de produção e aceita somente as origens exatas definidas por `CORS_ORIGIN`. O `.env.example` usa `http://localhost:8081` para o app web do Compose.
 
 Para parar sem apagar dados do UAT:
 
@@ -82,7 +84,7 @@ Estrutura de pastas (`mobile/src/`):
 ```
 src/
 ├── services/
-│   ├── api/client.js          # client HTTP centralizado (axios), injeta header x-user-type
+│   ├── api/client.js          # injeta Bearer JWT e invalida sessão após 401
 │   ├── postsService.js        # CRUD de posts
 │   ├── professoresService.js  # CRUD de professores
 │   ├── alunosService.js       # CRUD de alunos
@@ -105,10 +107,11 @@ src/
 
 **Fluxo de autenticação:**
 
-1. `LoginScreen` coleta email/senha e chama `authService.login(email, senha)`, que faz `POST /auth/login` real contra o backend.
-2. `AuthContext` monta a sessão (`{ role, name, id }`, nunca a senha) a partir da resposta do backend.
-3. A sessão é propagada em memória via `sessionStore.js` (módulo puro) e persistida best-effort em `AsyncStorage`, apenas para sobreviver a reaberturas do app.
-4. O interceptor de `client.js` injeta o header `x-user-type` em toda requisição subsequente, a partir da sessão ativa em `sessionStore`.
+1. `LoginScreen` coleta email/senha e chama `authService.login(email, senha)`, que faz `POST /auth/login` contra o backend.
+2. O backend valida a senha e responde `{ token, professor }`. O token é assinado com HS256 e expira em `JWT_EXPIRES_IN` (padrão: `8h`).
+3. `AuthContext` mantém e persiste `{ token, professor }` em `AsyncStorage`; a senha nunca integra a sessão.
+4. O interceptor de `client.js` injeta `Authorization: Bearer <token>` nas requisições autenticadas.
+5. Uma resposta `401` invalida a sessão via pub/sub do `sessionStore`; `AuthContext` limpa a persistência e a UI volta imediatamente à stack pública.
 
 ---
 
@@ -124,15 +127,32 @@ src/
 
 ---
 
-## Limitações de segurança conhecidas
+## Segurança da sessão
 
-- O header `x-user-type` é definido pelo próprio client local, a partir da sessão em memória. **Não é um token criptográfico** — pode ser adulterado por quem tiver acesso ao dispositivo ou à rede.
-- O login (`POST /auth/login`) valida credenciais reais via bcrypt no backend, mas a sessão pós-login **não usa JWT nem refresh token** — é persistida em `AsyncStorage` apenas como conveniência de UX entre reaberturas do app, nunca como mecanismo de segurança.
-- Sem HTTPS — ambiente acadêmico local/dev, fora de escopo deste projeto.
-- Este é o mesmo padrão de autenticação herdado desde a Fase 2, documentado desde o início em `PROJECT.md`. **Nunca usar esse padrão em produção real.**
+- Rotas administrativas exigem `Authorization: Bearer <token>`; `x-user-type` não é aceito como fallback.
+- O backend verifica assinatura, expiração, papel `teacher` e restringe o algoritmo a HS256.
+- `JWT_SECRET` é obrigatório no boot e precisa ter pelo menos 32 caracteres. `JWT_EXPIRES_IN` usa `8h` por padrão.
+- `CORS_ORIGIN` é obrigatório. Produção aceita somente as origens exatas configuradas e nunca wildcard. Desenvolvimento também permite `localhost:5173`, `localhost:8081` e URLs `exp://` em loopback/LAN.
+- O token fica no `AsyncStorage` para sobreviver a reaberturas. Não há refresh token; após expiração, a resposta `401` encerra a sessão e exige novo login.
+- Sem HTTPS — ambiente acadêmico local/dev. Uma implantação pública deve terminar TLS antes de transmitir credenciais ou tokens.
 
 ---
 
 ## Testes
 
-Testes automatizados no mobile estão explicitamente fora do escopo deste projeto (ver `REQUIREMENTS.md`, seção "Out of Scope"). A validação é manual, via Expo Go contra o backend real.
+Backend (requer PostgreSQL migrado e as variáveis obrigatórias):
+
+```bash
+cd backend
+npm test
+```
+
+O mobile não possui infraestrutura de testes automatizados. Valide o bundle web com Bun:
+
+```bash
+cd mobile
+bun install --frozen-lockfile
+bunx expo export --platform web
+```
+
+A validação funcional continua disponível via Expo Go contra o backend real.

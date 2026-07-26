@@ -26,7 +26,7 @@ function validateBody(schema) {
 // Leitura protegida: dado pessoal de aluno (nome/email) nunca fica em rota pública.
 router.get("/", requireTeacher, controller.list);
 
-// Escrita (somente professor - simulado por header x-user-type)
+// Escrita (somente professor autenticado por Bearer JWT)
 router.post("/", requireTeacher, validateBody(createAlunoSchema), controller.create);
 router.put("/:id", requireTeacher, validateBody(updateAlunoSchema), controller.update);
 router.delete("/:id", requireTeacher, controller.remove);

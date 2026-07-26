@@ -1,10 +1,10 @@
-// Módulo puro (sem import de React): desacopla client.js (não pode importar Context React)
-// de AuthContext.jsx. AuthContext chama setSession()/clearSession() em login()/logout();
-// client.js chama getSession() dentro do interceptor.
+// Módulo puro: mantém o token fora do Context React usado pelo client HTTP e
+// publica invalidações para a UI quando a API rejeita a sessão.
 let currentSession = null;
+const invalidationListeners = new Set();
 
 export function setSession(session) {
-  currentSession = session; // { role: 'teacher', name }
+  currentSession = session;
 }
 
 export function clearSession() {
@@ -13,4 +13,15 @@ export function clearSession() {
 
 export function getSession() {
   return currentSession;
+}
+
+export function invalidateSession(expectedToken) {
+  if (!currentSession || currentSession.token !== expectedToken) return;
+  currentSession = null;
+  invalidationListeners.forEach((listener) => listener());
+}
+
+export function subscribeToSessionInvalidation(listener) {
+  invalidationListeners.add(listener);
+  return () => invalidationListeners.delete(listener);
 }

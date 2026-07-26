@@ -1,3 +1,5 @@
+const jwt = require("jsonwebtoken");
+const { getConfig } = require("../../config/env");
 const bcrypt = require("bcryptjs");
 const prisma = require("../../config/prisma");
 
@@ -21,7 +23,20 @@ async function login(email, senha) {
   const senhaValida = await bcrypt.compare(senha, hashToCheck);
 
   if (!professor || !senhaValida) return null;
-  return omitSenha(professor);
+
+  const professorSeguro = omitSenha(professor);
+  const { jwtSecret, jwtExpiresIn } = getConfig();
+  const token = jwt.sign(
+    { role: "teacher" },
+    jwtSecret,
+    {
+      algorithm: "HS256",
+      expiresIn: jwtExpiresIn,
+      subject: String(professor.id),
+    }
+  );
+
+  return { token, professor: professorSeguro };
 }
 
 module.exports = { login };

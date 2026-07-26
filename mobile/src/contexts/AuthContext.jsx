@@ -1,6 +1,10 @@
 import { createContext, useContext, useEffect, useReducer, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { setSession, clearSession } from '../services/session/sessionStore';
+import {
+  setSession,
+  clearSession,
+  subscribeToSessionInvalidation,
+} from '../services/session/sessionStore';
 import { authService } from '../services/authService';
 
 const SESSION_KEY = '@blogeducamais:session';
@@ -12,11 +16,15 @@ function isValidSession(session) {
     session !== null
     && typeof session === 'object'
     && !Array.isArray(session)
-    && session.role === 'teacher'
-    && session.id !== undefined
-    && session.id !== null
-    && typeof session.name === 'string'
-    && session.name.trim().length > 0
+    && typeof session.token === 'string'
+    && session.token.trim().length > 0
+    && session.professor !== null
+    && typeof session.professor === 'object'
+    && !Array.isArray(session.professor)
+    && session.professor.id !== undefined
+    && session.professor.id !== null
+    && typeof session.professor.nome === 'string'
+    && session.professor.nome.trim().length > 0
   );
 }
 
@@ -29,9 +37,14 @@ const initialState = {
 function reducer(state, action) {
   switch (action.type) {
     case 'RESTORE':
-      return { ...state, isAuthenticated: !!action.session, user: action.session, isLoading: false };
+      return {
+        ...state,
+        isAuthenticated: !!action.session,
+        user: action.session?.professor ?? null,
+        isLoading: false,
+      };
     case 'LOGIN':
-      return { ...state, isAuthenticated: true, user: action.session };
+      return { ...state, isAuthenticated: true, user: action.session.professor };
     case 'LOGOUT':
       return { ...state, isAuthenticated: false, user: null };
     default:
@@ -95,15 +108,10 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Estado em memória (sessionStore/dispatch) é sempre a fonte de verdade da UI —
-  // persistência em AsyncStorage é best-effort e nunca deve deixar isAuthenticated
-  // dessincronizado de sessionStore se a escrita falhar.
-  // Assinatura async login(email, senha) — login real contra POST /auth/login.
-  // O reject de authService.login (ex.: 401) propaga para quem chamou login(), sem ser
-  // capturado aqui (quem trata o erro é a LoginScreen).
+  // Estado em memória é a fonte de verdade da UI; AsyncStorage preserva o token
+  // e os dados públicos do professor entre reaberturas.
   async function login(email, senha) {
-    const professor = await authService.login(email, senha);
-    const session = { role: 'teacher', name: professor.nome, id: professor.id };
+    const session = await authService.login(email, senha);
     desiredSessionRef.current = session;
     setSession(session);
     dispatch({ type: 'LOGIN', session });
@@ -113,6 +121,13 @@ export function AuthProvider({ children }) {
       // Sessão já está ativa em memória; falha ao persistir só afeta reabertura do app.
     }
   }
+
+  useEffect(() => subscribeToSessionInvalidation(() => {
+    desiredSessionRef.current = null;
+    clearSession();
+    dispatch({ type: 'LOGOUT' });
+    persistLatestSession().catch(() => {});
+  }), []);
 
   async function logout() {
     desiredSessionRef.current = null;

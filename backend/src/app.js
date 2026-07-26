@@ -6,21 +6,18 @@ const postRoutes = require('./modules/posts/post.routes');
 const professorRoutes = require('./modules/professores/professor.routes');
 const alunoRoutes = require('./modules/alunos/aluno.routes');
 const authRoutes = require('./modules/auth/auth.routes');
+const { getConfig } = require('./config/env');
+const { createCorsOptions } = require('./config/cors');
 
+const config = getConfig();
 const app = express();
 
 app.use(helmet());
-
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'x-user-type'],
-}));
+app.use(cors(createCorsOptions(config)));
 
 app.use(express.json());
 
-// Rate limit no login: mitiga brute-force de credenciais.
-// Não substitui autenticação/sessão real (fora de escopo do projeto) — só limita tentativas.
+// Rate limit no login: mitiga brute-force de credenciais sem substituir o Bearer JWT.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,

@@ -2,7 +2,7 @@ import client from './api/client';
 
 export const professoresService = {
   // GET /professores?page=&limit= -> {data,total,page,limit} — protegido por
-  // requireTeacher (diferente de posts, GET de professor SEMPRE exige x-user-type: teacher).
+  // requireTeacher (diferente de posts, GET de professor SEMPRE exige Authorization: Bearer <token>).
   list: ({ page = 1, limit = 10 } = {}) =>
     client.get('/professores', { params: { page, limit } }).then((res) => res.data),
 

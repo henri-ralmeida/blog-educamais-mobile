@@ -22,8 +22,7 @@ function validateBody(schema) {
   };
 }
 
-// Login real do professor — SEM requireTeacher (verificação de credenciais
-// independe do mecanismo de header x-user-type, não deve exigi-lo nem substituí-lo)
+// Login do professor é público: credenciais válidas emitem o Bearer JWT da sessão.
 router.post("/login", validateBody(loginSchema), controller.login);
 
 module.exports = router;

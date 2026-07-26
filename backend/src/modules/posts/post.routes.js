@@ -28,7 +28,7 @@ router.get("/", controller.list);
 router.get("/search", controller.search);
 router.get("/:id", controller.getById);
 
-// Escrita (somente professor - simulado por header x-user-type)
+// Escrita (somente professor autenticado por Bearer JWT)
 router.post("/", requireTeacher, validateBody(createPostSchema), controller.create);
 router.put("/:id", requireTeacher, validateBody(updatePostSchema), controller.update);
 router.delete("/:id", requireTeacher, controller.remove);

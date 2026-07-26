@@ -14,7 +14,7 @@ export default function PostFormScreen({ route, navigation }) {
   const [loadingPost, setLoadingPost] = useState(isEditMode);
   const [loadError, setLoadError] = useState(null);
   const [loadKey, setLoadKey] = useState(0);
-  const [postAuthor, setPostAuthor] = useState(user.name);
+  const [postAuthor, setPostAuthor] = useState(user.nome);
   const [submitError, setSubmitError] = useState(null);
 
   const {
@@ -34,7 +34,7 @@ export default function PostFormScreen({ route, navigation }) {
     postsService.getById(id)
       .then((data) => {
         if (cancelled) return;
-        setPostAuthor(data.author ?? user.name);
+        setPostAuthor(data.author ?? user.nome);
         reset({ title: data.title ?? '', content: data.content ?? '' });
       })
       .catch((err) => {
@@ -47,7 +47,7 @@ export default function PostFormScreen({ route, navigation }) {
     return () => {
       cancelled = true;
     };
-  }, [id, isEditMode, loadKey, reset, user.name]);
+  }, [id, isEditMode, loadKey, reset, user.nome]);
 
   function onSubmit(data) {
     setSubmitError(null);
