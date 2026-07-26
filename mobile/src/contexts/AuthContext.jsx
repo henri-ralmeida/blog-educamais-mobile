@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useReducer, useRef } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   setSession,
   clearSession,
+  invalidateSession,
   subscribeToSessionInvalidation,
 } from '../services/session/sessionStore';
 import { authService } from '../services/authService';
@@ -70,6 +72,16 @@ const initialState = {
   isLoading: true,
 };
 
+function scheduleExpiry(expiresAt, onExpire) {
+  const delay = expiresAt - Date.now();
+  if (delay <= 0) {
+    onExpire();
+    return null;
+  }
+  if (delay > 2 ** 31 - 1) return null; // setTimeout não aceita delay acima do signed int32.
+  return setTimeout(onExpire, delay);
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case 'RESTORE':
@@ -94,6 +106,21 @@ export function AuthProvider({ children }) {
   // quando chega à frente da fila, impedindo escrita antiga de apagar login posterior.
   const desiredSessionRef = useRef(null);
   const persistQueueRef = useRef(Promise.resolve());
+  const expiryTimerRef = useRef(null);
+
+  function clearExpiryTimer() {
+    if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+    expiryTimerRef.current = null;
+  }
+
+  function activateSession(session) {
+    clearExpiryTimer();
+    desiredSessionRef.current = session;
+    setSession(session);
+    expiryTimerRef.current = scheduleExpiry(session.expiresAt, () => {
+      invalidateSession(session.token);
+    });
+  }
 
   function persistLatestSession() {
     persistQueueRef.current = persistQueueRef.current
@@ -108,40 +135,47 @@ export function AuthProvider({ children }) {
     return persistQueueRef.current;
   }
 
-  // Loading gate no boot: isLoading só vira false no finally, garantindo
-  // que RootNavigator nunca decida a stack antes da restauração da sessão terminar.
+  // Loading gate no boot: sessão persistida só é restaurada depois que a API
+  // revalida assinatura, expiração, professor existente e versão de credenciais.
   useEffect(() => {
     let cancelled = false;
     let restoredSession = null;
 
-    AsyncStorage.getItem(SESSION_KEY)
-      .then((raw) => {
+    async function restoreSession() {
+      try {
+        const raw = await AsyncStorage.getItem(SESSION_KEY);
         if (!raw) return;
-        try {
-          const parsedSession = JSON.parse(raw);
-          const normalizedSession = normalizeSession(parsedSession);
-          if (!normalizedSession) {
-            return AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
-          }
-          restoredSession = normalizedSession;
-          desiredSessionRef.current = restoredSession;
-          setSession(restoredSession);
-        } catch {
-          // JSON corrompido nunca deve quebrar o boot do app — trata como sessão ausente.
-          restoredSession = null;
-          return AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
-        }
-      })
-      .catch(() => {
-        // Falha ao ler AsyncStorage no boot nunca deve travar o app — trata como sessão ausente.
-        restoredSession = null;
-      })
-      .finally(() => {
-        if (!cancelled) dispatch({ type: 'RESTORE', session: restoredSession });
-      });
 
+        const normalizedSession = normalizeSession(JSON.parse(raw));
+        if (!normalizedSession) {
+          await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+          return;
+        }
+
+        // O interceptor precisa do token em memória para autenticar /auth/session,
+        // mas a UI continua bloqueada por isLoading até a resposta remota.
+        setSession(normalizedSession);
+        const validated = await authService.validateSession();
+        restoredSession = normalizeSession({
+          ...normalizedSession,
+          professor: validated.professor,
+        });
+        if (!restoredSession) throw new Error('Sessão remota inválida');
+
+        if (!cancelled) activateSession(restoredSession);
+      } catch {
+        restoredSession = null;
+        clearSession();
+        await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
+      } finally {
+        if (!cancelled) dispatch({ type: 'RESTORE', session: restoredSession });
+      }
+    }
+
+    restoreSession();
     return () => {
       cancelled = true;
+      clearExpiryTimer();
     };
   }, []);
 
@@ -153,8 +187,7 @@ export function AuthProvider({ children }) {
     if (!normalizedSession) {
       throw new Error('O servidor retornou uma sessão inválida. Entre novamente.');
     }
-    desiredSessionRef.current = normalizedSession;
-    setSession(normalizedSession);
+    activateSession(normalizedSession);
     dispatch({ type: 'LOGIN', session: normalizedSession });
     try {
       await persistLatestSession();
@@ -164,13 +197,46 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => subscribeToSessionInvalidation(() => {
+    clearExpiryTimer();
     desiredSessionRef.current = null;
     clearSession();
     dispatch({ type: 'LOGOUT' });
     persistLatestSession().catch(() => {});
   }), []);
 
+  // Ao voltar do background, Date.now() confirma a expiração mesmo se o SO tiver
+  // suspendido timers. Sessão ainda vigente é revalidada remotamente.
+  useEffect(() => {
+    let validating = false;
+    const subscription = AppState.addEventListener('change', async (nextState) => {
+      const session = desiredSessionRef.current;
+      if (nextState !== 'active' || !session || validating) return;
+      if (session.expiresAt <= Date.now()) {
+        invalidateSession(session.token);
+        return;
+      }
+
+      validating = true;
+      try {
+        const validated = await authService.validateSession();
+        if (desiredSessionRef.current?.token === session.token) {
+          const refreshed = normalizeSession({ ...session, professor: validated.professor });
+          if (!refreshed) invalidateSession(session.token);
+          else activateSession(refreshed);
+        }
+      } catch (error) {
+        // 401 já invalida via interceptor. Falha transitória de rede não encerra
+        // sessão local ainda válida ao retomar o app.
+        if (error?.response?.status === 401) invalidateSession(session.token);
+      } finally {
+        validating = false;
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   async function logout() {
+    clearExpiryTimer();
     desiredSessionRef.current = null;
     try {
       await persistLatestSession();

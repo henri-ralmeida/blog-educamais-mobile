@@ -6,6 +6,24 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, spacing, typography } from '../../theme/tokens';
 
+const MIN_SENHA_CARACTERES = 6;
+const MAX_SENHA_BYTES = 72;
+
+function utf8ByteLength(value) {
+  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(value).length;
+  return unescape(encodeURIComponent(value)).length;
+}
+
+function getLoginErrorMessage(error) {
+  const status = error?.response?.status;
+  if (status === 400) return 'Confira os campos informados e tente novamente.';
+  if (status === 401) return 'Email ou senha inválidos. Verifique suas credenciais e tente novamente.';
+  if (status === 429) return 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.';
+  if (status >= 500) return 'O servidor está indisponível no momento. Tente novamente mais tarde.';
+  if (!error?.response) return 'Não foi possível conectar ao servidor. Verifique sua conexão.';
+  return 'Não foi possível entrar. Tente novamente.';
+}
+
 export default function LoginScreen() {
   const { login } = useAuth();
   const [loginError, setLoginError] = useState(null);
@@ -20,17 +38,20 @@ export default function LoginScreen() {
     try {
       await login(data.email, data.senha);
     } catch (err) {
-      if (err?.response?.status === 401) {
-        setLoginError('Email ou senha inválidos. Verifique suas credenciais e tente novamente.');
-      } else {
-        setLoginError('Não foi possível conectar ao servidor. Tente novamente.');
-      }
+      setLoginError(getLoginErrorMessage(err));
     }
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Email</Text>
+    <View style={styles.container} accessible accessibilityLabel="Tela de login">
+      <Text
+        style={styles.heading}
+        accessibilityRole="header"
+        accessibilityLabel="Acesso restrito: entrada"
+      >
+        Entrar
+      </Text>
+      <Text style={styles.label} nativeID="email-label">Email</Text>
       <Controller
         control={control}
         name="email"
@@ -45,21 +66,40 @@ export default function LoginScreen() {
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             keyboardType="email-address"
+            autoComplete="email"
+            accessibilityLabel="Email"
+            accessibilityLabelledBy="email-label"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
           />
         )}
       />
-      {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+      {errors.email && (
+        <Text
+          style={styles.errorText}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+        >
+          {errors.email.message}
+        </Text>
+      )}
 
-      <Text style={[styles.label, styles.fieldSpacing]}>Senha</Text>
+      <Text style={[styles.label, styles.fieldSpacing]} nativeID="senha-label">Senha</Text>
       <Controller
         control={control}
         name="senha"
         rules={{
           required: 'Senha obrigatória',
-          validate: (v) => !/^\s+$/u.test(v) || 'Senha não pode conter apenas espaços',
+          validate: {
+            apenasEspacos: (v) => !/^\s+$/u.test(v) || 'Senha não pode conter apenas espaços',
+            minimoCaracteres: (v) =>
+              [...v].length >= MIN_SENHA_CARACTERES ||
+              `Senha deve ter ao menos ${MIN_SENHA_CARACTERES} caracteres`,
+            maximoBytes: (v) =>
+              utf8ByteLength(v) <= MAX_SENHA_BYTES ||
+              `Senha deve ter no máximo ${MAX_SENHA_BYTES} bytes em UTF-8`,
+          },
         }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
@@ -67,19 +107,41 @@ export default function LoginScreen() {
             placeholder="Digite sua senha"
             placeholderTextColor={colors.textMuted}
             secureTextEntry
+            autoComplete="password"
+            accessibilityLabel="Senha"
+            accessibilityLabelledBy="senha-label"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
           />
         )}
       />
-      {errors.senha && <Text style={styles.errorText}>{errors.senha.message}</Text>}
-      {loginError && <Text style={styles.errorText}>{loginError}</Text>}
+      {errors.senha && (
+        <Text
+          style={styles.errorText}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+        >
+          {errors.senha.message}
+        </Text>
+      )}
+      {loginError && (
+        <Text
+          style={[styles.errorText, styles.loginErrorText]}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+        >
+          {loginError}
+        </Text>
+      )}
 
       <Pressable
         style={[styles.button, isSubmitting && styles.buttonDisabled]}
         onPress={handleSubmit(onSubmit)}
         disabled={isSubmitting}
+        accessibilityRole="button"
+        accessibilityLabel="Entrar"
+        accessibilityState={{ disabled: isSubmitting }}
       >
         <Text style={styles.buttonText}>Entrar</Text>
       </Pressable>
@@ -93,6 +155,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
+  },
+  heading: {
+    ...typography.display,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.xl,
+    textAlign: 'center',
   },
   label: {
     ...typography.label,
@@ -114,6 +183,10 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.destructive,
     marginTop: spacing.sm,
+  },
+  loginErrorText: {
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
   button: {
     marginTop: spacing.xl,
