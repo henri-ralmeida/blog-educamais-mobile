@@ -3,6 +3,13 @@ const { z } = require("zod");
 const MIN_SENHA_CARACTERES = 6;
 const MAX_SENHA_BYTES = 72;
 
+function nomeObrigatorio() {
+  return z
+    .string()
+    .min(1, "nome is required")
+    .refine((nome) => nome.trim().length > 0, "nome não pode conter apenas espaços");
+}
+
 function validarSenhaLiteral(senha, contexto, permitirVazia = false) {
   if (permitirVazia && senha === "") return;
 
@@ -36,7 +43,7 @@ function validarSenhaLiteral(senha, contexto, permitirVazia = false) {
 }
 
 const createProfessorSchema = z.object({
-  nome: z.string().min(1, "nome is required"),
+  nome: nomeObrigatorio(),
   email: z.email("email inválido"),
   senha: z
     .string()
@@ -45,7 +52,7 @@ const createProfessorSchema = z.object({
 });
 
 const updateProfessorSchema = z.object({
-  nome: z.string().min(1).optional(),
+  nome: nomeObrigatorio().optional(),
   email: z.email().optional(),
   senha: z
     .string()

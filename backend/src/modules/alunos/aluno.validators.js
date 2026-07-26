@@ -1,12 +1,19 @@
 const { z } = require("zod");
 
+function nomeObrigatorio() {
+  return z
+    .string()
+    .min(1, "nome is required")
+    .refine((nome) => nome.trim().length > 0, "nome não pode conter apenas espaços");
+}
+
 const createAlunoSchema = z.object({
-  nome: z.string().min(1, "nome is required"),
+  nome: nomeObrigatorio(),
   email: z.email("email inválido"),
 });
 
 const updateAlunoSchema = z.object({
-  nome: z.string().min(1).optional(),
+  nome: nomeObrigatorio().optional(),
   email: z.email().optional(),
 });
 
