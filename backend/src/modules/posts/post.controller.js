@@ -1,11 +1,20 @@
 const postService = require("./post.service");
 
+function logControllerError(operation, error) {
+  console.error("[post.controller] Falha na operação", {
+    operation,
+    name: typeof error?.name === "string" ? error.name : "UnknownError",
+    code: typeof error?.code === "string" ? error.code : "UNKNOWN",
+  });
+}
+
 async function create(req, res) {
   try {
     const post = await postService.createPost(req.body);
     return res.status(201).json(post);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    logControllerError("create", error);
+    return res.status(400).json({ error: "Requisição inválida" });
   }
 }
 
@@ -33,7 +42,11 @@ async function update(req, res) {
     const post = await postService.updatePost(req.params.id, req.body);
     return res.json(post);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    logControllerError("update", error);
+    if (error?.code === "P2025") {
+      return res.status(404).json({ error: "Post not found" });
+    }
+    return res.status(400).json({ error: "Requisição inválida" });
   }
 }
 
