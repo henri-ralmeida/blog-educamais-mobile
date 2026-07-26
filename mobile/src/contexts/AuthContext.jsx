@@ -11,21 +11,57 @@ const SESSION_KEY = '@blogeducamais:session';
 
 const AuthContext = createContext(null);
 
-function isValidSession(session) {
-  return (
-    session !== null
-    && typeof session === 'object'
-    && !Array.isArray(session)
-    && typeof session.token === 'string'
-    && session.token.trim().length > 0
-    && session.professor !== null
-    && typeof session.professor === 'object'
-    && !Array.isArray(session.professor)
-    && session.professor.id !== undefined
-    && session.professor.id !== null
-    && typeof session.professor.nome === 'string'
-    && session.professor.nome.trim().length > 0
-  );
+function decodeBase64Url(value) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+
+  if (typeof globalThis.atob === 'function') {
+    return globalThis.atob(padded);
+  }
+
+  if (typeof globalThis.Buffer !== 'undefined') {
+    return globalThis.Buffer.from(padded, 'base64').toString('utf8');
+  }
+
+  throw new Error('Decodificador base64 indisponível');
+}
+
+function getTokenExpiresAt(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(decodeBase64Url(parts[1]));
+    if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) return null;
+    const expiresAt = payload.exp * 1000;
+    return Number.isSafeInteger(expiresAt) ? expiresAt : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSession(session) {
+  if (
+    session === null
+    || typeof session !== 'object'
+    || Array.isArray(session)
+    || typeof session.token !== 'string'
+    || session.token.trim().length === 0
+    || session.professor === null
+    || typeof session.professor !== 'object'
+    || Array.isArray(session.professor)
+    || session.professor.id === undefined
+    || session.professor.id === null
+    || typeof session.professor.nome !== 'string'
+    || session.professor.nome.trim().length === 0
+  ) {
+    return null;
+  }
+
+  // O payload decodificado fornece apenas a expiração local. Autenticidade e
+  // autorização continuam sendo responsabilidade da API, que verifica a assinatura.
+  const expiresAt = getTokenExpiresAt(session.token);
+  if (expiresAt === null || expiresAt <= Date.now()) return null;
+  return { ...session, expiresAt };
 }
 
 const initialState = {
@@ -83,10 +119,11 @@ export function AuthProvider({ children }) {
         if (!raw) return;
         try {
           const parsedSession = JSON.parse(raw);
-          if (!isValidSession(parsedSession)) {
+          const normalizedSession = normalizeSession(parsedSession);
+          if (!normalizedSession) {
             return AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
           }
-          restoredSession = parsedSession;
+          restoredSession = normalizedSession;
           desiredSessionRef.current = restoredSession;
           setSession(restoredSession);
         } catch {
@@ -112,9 +149,13 @@ export function AuthProvider({ children }) {
   // e os dados públicos do professor entre reaberturas.
   async function login(email, senha) {
     const session = await authService.login(email, senha);
-    desiredSessionRef.current = session;
-    setSession(session);
-    dispatch({ type: 'LOGIN', session });
+    const normalizedSession = normalizeSession(session);
+    if (!normalizedSession) {
+      throw new Error('O servidor retornou uma sessão inválida. Entre novamente.');
+    }
+    desiredSessionRef.current = normalizedSession;
+    setSession(normalizedSession);
+    dispatch({ type: 'LOGIN', session: normalizedSession });
     try {
       await persistLatestSession();
     } catch {

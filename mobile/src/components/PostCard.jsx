@@ -6,8 +6,9 @@ const DESCRIPTION_LIMIT = 150;
 
 function buildDescription(content) {
   if (!content) return '';
-  if (content.length <= DESCRIPTION_LIMIT) return content;
-  return `${content.slice(0, DESCRIPTION_LIMIT)}…`;
+  const codePoints = Array.from(content);
+  if (codePoints.length <= DESCRIPTION_LIMIT) return content;
+  return `${codePoints.slice(0, DESCRIPTION_LIMIT).join('')}…`;
 }
 
 export default function PostCard({ post, onPress }) {

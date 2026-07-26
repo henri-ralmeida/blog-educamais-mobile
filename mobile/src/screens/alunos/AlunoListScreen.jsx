@@ -1,7 +1,16 @@
 // Listagem paginada real de alunos — espelha ProfessorListScreen 1:1,
 // mesma mecânica de paginação real no servidor via infinite scroll.
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import EmptyState from '../../components/EmptyState';
 import { alunosService } from '../../services/alunosService';
@@ -15,85 +24,99 @@ export default function AlunoListScreen({ navigation }) {
   const [page, setPage] = useState(1);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
   const hasMore = items.length < total;
+  const mountedRef = useRef(true);
+  const requestGenerationRef = useRef(0);
+  const endReachedLockRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestGenerationRef.current += 1;
+    };
+  }, []);
+
+  const loadFirstPage = useCallback(async ({ showLoading = false, showRefreshing = false } = {}) => {
+    const requestGeneration = ++requestGenerationRef.current;
+    endReachedLockRef.current = true;
+    setIsFetchingMore(false);
+    if (showLoading) setLoading(true);
+    if (showRefreshing) setRefreshing(true);
+    setHasError(false);
+
+    try {
+      const res = await alunosService.list({ page: 1, limit: PAGE_LIMIT });
+      if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return false;
+      setItems(res.data);
+      setTotal(res.total);
+      setPage(1);
+      return true;
+    } catch {
+      if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return false;
+      setHasError(true);
+      setPage(1);
+      return false;
+    } finally {
+      if (mountedRef.current && requestGeneration === requestGenerationRef.current) {
+        endReachedLockRef.current = false;
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, []);
 
   // Reseta para a primeira página a cada retryKey (também cobre o recarregamento ao
   // voltar de criar/editar/excluir, via o listener de focus abaixo).
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setHasError(false);
-    alunosService.list({ page: 1, limit: PAGE_LIMIT })
-      .then((res) => {
-        if (cancelled) return;
-        setItems(res.data);
-        setTotal(res.total);
-        setPage(1);
-      })
-      .catch(() => {
-        if (!cancelled) setHasError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [retryKey]);
+    loadFirstPage({ showLoading: true });
+  }, [loadFirstPage, retryKey]);
 
   // Ignora o primeiro evento de foco (montagem inicial), já coberto pelo useEffect acima.
   const isFirstFocus = useRef(true);
-  const endReachedLockRef = useRef(false);
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       if (isFirstFocus.current) {
         isFirstFocus.current = false;
         return;
       }
-      setRetryKey((k) => k + 1);
+      loadFirstPage();
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [loadFirstPage, navigation]);
 
-  // Após excluir, volta à página 1 e usa o total devolvido pelo servidor. A
-  // redução local mantém a interface coerente caso essa reconciliação falhe.
-  function reconcileFirstPage(deletedId) {
-    setItems((current) => current.filter((item) => item.id !== deletedId).slice(0, PAGE_LIMIT));
-    setTotal((current) => Math.max(0, current - 1));
-    setPage(1);
+  function handleRefresh() {
+    loadFirstPage({ showRefreshing: true });
+  }
 
-    return alunosService
-      .list({ page: 1, limit: PAGE_LIMIT })
-      .then((res) => {
-        setItems(res.data);
-        setTotal(res.total);
-        setPage(1);
-      })
-      .catch(() => {
-        // Mantém a primeira página reconciliada localmente; o próximo foco tenta de novo.
-      });
+  async function reconcileFirstPage() {
+    // Invalida qualquer próxima página em voo antes de buscar a fonte de verdade.
+    await loadFirstPage();
   }
 
   function handleEndReached() {
     // A ref bloqueia reentradas no mesmo ciclo, antes de isFetchingMore renderizar.
-    // A liberação ocorre somente quando a requisição termina.
-    if (endReachedLockRef.current || isFetchingMore || !hasMore) return;
+    if (endReachedLockRef.current || isFetchingMore || !hasMore || hasError) return;
     endReachedLockRef.current = true;
     setIsFetchingMore(true);
     const nextPage = page + 1;
+    const requestGeneration = requestGenerationRef.current;
     alunosService.list({ page: nextPage, limit: PAGE_LIMIT })
       .then((res) => {
+        if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return;
         setItems((current) => [...current, ...res.data]);
         setTotal(res.total);
         setPage(nextPage);
       })
       .catch(() => {
-        // Falha ao buscar próxima página: mantém lista atual, permite retry no próximo scroll.
+        // Falha ao buscar próxima página: mantém lista e offset atuais.
       })
       .finally(() => {
+        if (!mountedRef.current || requestGeneration !== requestGenerationRef.current) return;
         endReachedLockRef.current = false;
         setIsFetchingMore(false);
       });
@@ -116,11 +139,11 @@ export default function AlunoListScreen({ navigation }) {
 
   function handleDelete(aluno) {
     alunosService.remove(aluno.id)
-      .then(() => reconcileFirstPage(aluno.id))
+      .then(() => reconcileFirstPage())
       .catch((err) => {
         // 404: aluno já não existe, que era o objetivo — reconcilia mesmo assim.
         if (err?.response?.status === 404) {
-          reconcileFirstPage(aluno.id);
+          reconcileFirstPage();
           return;
         }
         Alert.alert('Erro', 'Não foi possível excluir o aluno. Tente novamente.');
@@ -165,6 +188,14 @@ export default function AlunoListScreen({ navigation }) {
         isFetchingMore ? (
           <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando mais alunos" />
         ) : null
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
+        />
       }
       renderItem={({ item }) => (
         <View style={styles.item}>
