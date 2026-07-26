@@ -20,15 +20,20 @@ Banco, backend e versão web do app mobile sobem juntos:
 ```bash
 # na raiz deste repositório
 cp .env.example .env
-# edite .env e defina POSTGRES_PASSWORD, JWT_SECRET e RATE_LIMIT_SECRET
-# (os dois segredos com 32+ caracteres aleatórios e distintos entre si)
+# edite .env e preencha:
+#   POSTGRES_PASSWORD
+#   JWT_SECRET e RATE_LIMIT_SECRET  (32+ caracteres aleatórios, distintos entre si)
+#   INITIAL_TEACHER_NAME, INITIAL_TEACHER_EMAIL, INITIAL_TEACHER_PASSWORD
+#     (usados no bootstrap descrito adiante — preencha agora para não voltar aqui)
 docker compose up --build
 ```
 
+O banco sobe **vazio**: sem posts e sem nenhuma conta. O login só funciona depois
+do bootstrap descrito na próxima seção.
+
 > **Windows:** salve o `.env` com fim de linha **LF**. Com CRLF, cada valor
 > termina em carriage return dentro do container Linux: `CORS_ORIGIN` vira
-> `http://localhost:8081
-` e toda requisição do app falha sem erro visível.
+> `http://localhost:8081` e toda requisição do app falha sem erro visível.
 > O `.gitattributes` do repositório já força LF nos arquivos versionados.
 
 Serviços disponíveis:
@@ -74,7 +79,14 @@ Para parar sem apagar dados do UAT:
 docker compose down
 ```
 
-Não use `docker compose down -v` durante o UAT: `-v` remove o volume e apaga dados do PostgreSQL.
+Não use `docker compose down -v`: `-v` remove o volume e apaga todos os dados do PostgreSQL.
+
+> **Trocar `POSTGRES_PASSWORD` com o volume já existente derruba o backend.**
+> O PostgreSQL só aplica a senha na primeira inicialização do volume; depois disso
+> ela vive dentro dele. Se você mudar a senha no `.env` de um ambiente que já rodou,
+> o backend falha com `P1000: Authentication failed against database server at 'db'`.
+> Ou mantenha a senha original, ou recrie o volume com `docker compose down -v`
+> aceitando a perda dos dados.
 
 ---
 
@@ -204,8 +216,7 @@ curl -s http://localhost:3000/health
 curl -s http://localhost:3000/posts
 
 # rota administrativa exige credencial (deve responder 401)
-curl -s -o /dev/null -w "%{http_code}
-" http://localhost:3000/professores
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/professores
 ```
 
 Bundle web do app:
@@ -216,3 +227,19 @@ bun install --frozen-lockfile
 bunx expo export --platform web
 ```
 
+Fluxo mínimo para conferir que a stack inteira está de pé, com o token obtido no
+login do professor criado pelo bootstrap:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:3000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"SEU_EMAIL","senha":"SUA_SENHA"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
+
+# criar um post (deve responder 201; o autor vem do token, não do corpo)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:3000/posts \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+  -d '{"title":"Aula inaugural","content":"Primeiro post do ambiente."}'
+
+# o post recém-criado já aparece na leitura pública
+curl -s http://localhost:3000/posts
+```
