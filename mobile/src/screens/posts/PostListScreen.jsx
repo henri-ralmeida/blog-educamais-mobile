@@ -1,17 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import PostCard from '../../components/PostCard';
 import SearchBar from '../../components/SearchBar';
 import EmptyState from '../../components/EmptyState';
+import ErrorState from '../../components/ErrorState';
 import { postsService } from '../../services/postsService';
+import { describeRequestError } from '../../utils/requestError';
 import { colors, spacing, typography } from '../../theme/tokens';
 
 const DEBOUNCE_MS = 400;
@@ -22,13 +16,11 @@ export default function PostListScreen({ navigation }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
+  const [errorMessage, setErrorMessage] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
   const requestSeqRef = useRef(0);
-  const endReachedLockRef = useRef(false);
-  const loadMoreTimeoutRef = useRef(null);
 
   // Debounce: agenda a atualização de debouncedTerm 400ms após o último keystroke,
   // cancelando o timeout anterior a cada novo caractere digitado.
@@ -39,32 +31,32 @@ export default function PostListScreen({ navigation }) {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  function fetchPosts(term, { finishRefresh = false } = {}) {
+  // keepReveal preserva quantos itens já estavam revelados: no pull-to-refresh a
+  // lista encolhia de 30 para 10 itens porque o contador era sempre resetado.
+  function fetchPosts(term, { finishRefresh = false, keepReveal = false } = {}) {
     const requestSeq = ++requestSeqRef.current;
     const normalizedTerm = term.trim();
 
-    if (loadMoreTimeoutRef.current) {
-      clearTimeout(loadMoreTimeoutRef.current);
-      loadMoreTimeoutRef.current = null;
-      setIsLoadingMore(false);
-      // A busca cancelou o carregamento local; libera a trava que seria limpa
-      // pelo callback do timeout cancelado.
-      endReachedLockRef.current = false;
-    }
-    setHasError(false);
+    setErrorMessage(null);
+    setIsFetching(true);
     return postsService
       .search(normalizedTerm)
       .then((data) => {
         if (requestSeq !== requestSeqRef.current) return;
         setAllPosts(data);
-        setVisibleCount(PAGE_SIZE);
-        setHasError(false);
+        setVisibleCount((current) =>
+          keepReveal ? Math.min(Math.max(current, PAGE_SIZE), Math.max(data.length, PAGE_SIZE)) : PAGE_SIZE,
+        );
+        setErrorMessage(null);
       })
-      .catch(() => {
-        if (requestSeq === requestSeqRef.current) setHasError(true);
+      .catch((error) => {
+        if (requestSeq !== requestSeqRef.current) return;
+        setErrorMessage(describeRequestError(error).message);
       })
       .finally(() => {
-        if (requestSeq === requestSeqRef.current) setLoading(false);
+        if (requestSeq !== requestSeqRef.current) return;
+        setLoading(false);
+        setIsFetching(false);
         if (finishRefresh) setRefreshing(false);
       });
   }
@@ -75,64 +67,81 @@ export default function PostListScreen({ navigation }) {
 
   useEffect(() => () => {
     requestSeqRef.current += 1;
-    if (loadMoreTimeoutRef.current) clearTimeout(loadMoreTimeoutRef.current);
   }, []);
 
   // Paginação local: todos os posts já vieram da busca; onEndReached só aumenta
-  // o slice visível, sem nova requisição ao servidor.
+  // o slice visível de forma síncrona, sem requisição e sem timer artificial.
   function handleEndReached() {
-    // A ref bloqueia reentradas no mesmo ciclo e é liberada ao concluir/cancelar
-    // o carregamento local, sem depender de momentum.
-    if (endReachedLockRef.current || visibleCount >= allPosts.length) return;
-    endReachedLockRef.current = true;
-    setIsLoadingMore(true);
-    loadMoreTimeoutRef.current = setTimeout(() => {
-      setVisibleCount((c) => Math.min(c + PAGE_SIZE, allPosts.length));
-      setIsLoadingMore(false);
-      loadMoreTimeoutRef.current = null;
-      endReachedLockRef.current = false;
-    }, 120);
+    setVisibleCount((current) =>
+      current >= allPosts.length ? current : Math.min(current + PAGE_SIZE, allPosts.length),
+    );
   }
 
   function handleRefresh() {
     setRefreshing(true);
-    fetchPosts(debouncedTerm, { finishRefresh: true });
+    fetchPosts(debouncedTerm, { finishRefresh: true, keepReveal: true });
   }
 
   function handleRetry() {
-    setHasError(false);
     setLoading(true);
-    fetchPosts(debouncedTerm);
+    fetchPosts(debouncedTerm, { keepReveal: true });
+  }
+
+  function handleClearSearch() {
+    setSearchTerm('');
+    setDebouncedTerm('');
   }
 
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
-  }
-
-  if (hasError) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>
-          Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.
-        </Text>
-        <Pressable
-          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
-          onPress={handleRetry}
-          accessibilityRole="button"
-          accessibilityLabel="Tentar carregar os posts novamente"
-        >
-          <Text style={styles.retryButtonText}>Tentar novamente</Text>
-        </Pressable>
+        <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando posts" />
       </View>
     );
   }
 
   const visiblePosts = allPosts.slice(0, visibleCount);
   const normalizedTerm = debouncedTerm.trim();
+  const hasFilter = normalizedTerm.length > 0;
+
+  // O erro entra como ListEmptyComponent em vez de substituir a tela: antes o
+  // early return desmontava a SearchBar junto, e um termo que falhava de forma
+  // determinística não podia mais ser apagado — beco sem saída até reiniciar.
+  function renderEmptyArea() {
+    if (errorMessage) {
+      return (
+        <ErrorState
+          message={errorMessage}
+          onRetry={handleRetry}
+          retryLabel="Tentar carregar os posts novamente"
+          secondaryLabel={hasFilter ? 'Limpar busca' : undefined}
+          onSecondary={hasFilter ? handleClearSearch : undefined}
+        />
+      );
+    }
+    // Sem esta guarda a tela afirmava "Ainda não há posts publicados" enquanto
+    // uma busca ainda estava em voo, mesmo com posts existindo no servidor.
+    if (isFetching) {
+      return (
+        <View style={styles.inlineLoader}>
+          <ActivityIndicator color={colors.accent} accessibilityLabel="Buscando posts" />
+        </View>
+      );
+    }
+    return hasFilter ? (
+      <EmptyState
+        icon="document-text-outline"
+        heading="Nenhum resultado para sua busca"
+        body={`Não encontramos posts para "${normalizedTerm}". Tente outra palavra-chave.`}
+      />
+    ) : (
+      <EmptyState
+        icon="document-text-outline"
+        heading="Nenhum post encontrado"
+        body="Ainda não há posts publicados. Puxe a lista para baixo para atualizar."
+      />
+    );
+  }
 
   return (
     <FlatList
@@ -143,11 +152,17 @@ export default function PostListScreen({ navigation }) {
       ]}
       data={visiblePosts}
       keyExtractor={(item) => String(item.id)}
+      // Com o teclado aberto o primeiro toque no card era engolido pelo dismiss,
+      // exigindo dois toques no fluxo buscar -> ler.
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       ListHeaderComponent={
         <View style={styles.listHeader}>
           <View style={styles.intro}>
             <Text style={styles.eyebrow}>CONTEÚDO PARA APRENDER</Text>
-            <Text style={styles.introTitle}>Ideias que continuam com você.</Text>
+            <Text style={styles.introTitle} accessibilityRole="header">
+              Ideias que continuam com você.
+            </Text>
             <Text style={styles.introBody}>
               Encontre leituras preparadas por professores para ampliar o que você aprende.
             </Text>
@@ -163,33 +178,15 @@ export default function PostListScreen({ navigation }) {
       )}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
-      ListFooterComponent={
-        isLoadingMore ? (
-          <ActivityIndicator
-            color={colors.accent}
-            style={styles.footerLoader}
-            accessibilityLabel="Carregando mais posts"
-          />
-        ) : null
-      }
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
+        />
       }
-      ListEmptyComponent={
-        normalizedTerm ? (
-          <EmptyState
-            icon="document-text-outline"
-            heading="Nenhum resultado para sua busca"
-            body={`Não encontramos posts para "${normalizedTerm}". Tente outra palavra-chave.`}
-          />
-        ) : (
-          <EmptyState
-            icon="document-text-outline"
-            heading="Nenhum post encontrado"
-            body="Ainda não há posts publicados. Puxe a lista para baixo para atualizar."
-          />
-        )
-      }
+      ListEmptyComponent={renderEmptyArea()}
     />
   );
 }
@@ -236,29 +233,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingHorizontal: spacing.xl,
   },
-  errorText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    justifyContent: 'center',
+  inlineLoader: {
+    paddingVertical: spacing.xl,
     alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-  },
-  retryButtonText: {
-    ...typography.button,
-    color: colors.onAccent,
-  },
-  buttonPressed: {
-    opacity: 0.78,
-  },
-  footerLoader: {
-    marginVertical: spacing.lg,
   },
 });

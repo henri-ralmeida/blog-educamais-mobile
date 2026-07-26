@@ -1,18 +1,33 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import ErrorState from '../../components/ErrorState';
 import { postsService } from '../../services/postsService';
+import { describeRequestError } from '../../utils/requestError';
 import { colors, spacing, typography } from '../../theme/tokens';
 
+function formatDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('pt-BR');
+}
+
 export default function PostDetailScreen({ route }) {
-  const { id } = route.params;
+  // route.params vinha desestruturado direto: alcançar a tela sem params
+  // (deep link, restauração de estado) lançava TypeError antes do primeiro render.
+  const { id } = route?.params ?? {};
   const [post, setPost] = useState(null);
   const [notFound, setNotFound] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
+    if (id === undefined || id === null) {
+      setErrorMessage('Post não informado. Volte para a lista e escolha uma leitura.');
+      return undefined;
+    }
     let cancelled = false;
-    setError(false);
+    setErrorMessage(null);
     setNotFound(false);
     setPost(null);
     postsService.getById(id)
@@ -24,7 +39,7 @@ export default function PostDetailScreen({ route }) {
         if (err?.response?.status === 404) {
           setNotFound(true);
         } else {
-          setError(true);
+          setErrorMessage(describeRequestError(err).message);
         }
       });
     return () => {
@@ -35,23 +50,21 @@ export default function PostDetailScreen({ route }) {
   if (notFound) {
     return (
       <View style={styles.centered}>
-        <Text style={typography.body}>Post não encontrado</Text>
+        <Text style={typography.body} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          Post não encontrado
+        </Text>
       </View>
     );
   }
 
-  if (error) {
+  if (errorMessage) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.</Text>
-        <Pressable
-          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
-          onPress={() => setRetryKey((k) => k + 1)}
-          accessibilityRole="button"
-          accessibilityLabel="Tentar carregar o post novamente"
-        >
-          <Text style={styles.retryButtonText}>Tentar novamente</Text>
-        </Pressable>
+        <ErrorState
+          message={errorMessage}
+          onRetry={id === undefined || id === null ? undefined : () => setRetryKey((k) => k + 1)}
+          retryLabel="Tentar carregar o post novamente"
+        />
       </View>
     );
   }
@@ -59,14 +72,22 @@ export default function PostDetailScreen({ route }) {
   if (!post) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={colors.accent} accessibilityLabel="Carregando post" />
       </View>
     );
   }
 
+  const publishedAt = formatDate(post.createdAt);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{post.title}</Text>
+      <Text style={styles.title} accessibilityRole="header">{post.title}</Text>
+      {/* A leitura omitia autor e data que a API já devolve, regredindo a
+          informação que o card da lista mostra. */}
+      <Text style={styles.meta}>
+        {post.author}
+        {publishedAt ? ` · ${publishedAt}` : ''}
+      </Text>
       <Text style={styles.body}>{post.content}</Text>
     </ScrollView>
   );
@@ -82,10 +103,17 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.heading,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  meta: {
+    ...typography.label,
+    color: colors.textMuted,
     marginBottom: spacing.md,
   },
   body: {
     ...typography.body,
+    color: colors.textPrimary,
   },
   centered: {
     flex: 1,
@@ -93,26 +121,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
     paddingHorizontal: spacing['3xl'],
-  },
-  errorText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    ...typography.button,
-    color: colors.onAccent,
-  },
-  buttonPressed: {
-    opacity: 0.72,
   },
 });
