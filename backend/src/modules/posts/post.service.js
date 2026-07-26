@@ -55,12 +55,20 @@ async function deletePost(id) {
   }
 }
 
+// `contains` gera LIKE sem escapar curingas: buscar "%" ou "_" devolvia
+// praticamente todos os posts em vez de buscar o caractere literal.
+// No PostgreSQL a barra invertida é o escape padrão do LIKE.
+function escapeLikeWildcards(term) {
+  return term.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
 async function searchPosts(term) {
+  const safeTerm = escapeLikeWildcards(term);
   return prisma.post.findMany({
     where: {
       OR: [
-        { title: { contains: term, mode: "insensitive" } },
-        { content: { contains: term, mode: "insensitive" } },
+        { title: { contains: safeTerm, mode: "insensitive" } },
+        { content: { contains: safeTerm, mode: "insensitive" } },
       ],
     },
     orderBy: { createdAt: "desc" },
