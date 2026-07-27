@@ -67,6 +67,12 @@ export default function AdminHomeScreen({ navigation }) {
         description="Cadastrar e manter registros de aluno"
         onPress={() => navigation.navigate('AlunoList')}
       />
+      <MenuCard
+        icon="eye-outline"
+        label="Ver como aluno"
+        description="Abrir a leitura pública sem sair da sua conta"
+        onPress={() => navigation.navigate('StudentPreview')}
+      />
     </View>
   );
 }

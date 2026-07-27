@@ -219,6 +219,23 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Atualiza os dados públicos do professor logado sem nova ida ao servidor,
+  // usado quando o próprio professor edita nome/email a partir da área admin.
+  // Não altera token nem senha — só o que a UI exibe (ex.: "Olá, ...").
+  function updateUser(patch) {
+    const current = desiredSessionRef.current;
+    if (!current) return;
+    const updatedSession = normalizeSession({
+      ...current,
+      professor: { ...current.professor, ...patch },
+    });
+    if (!updatedSession) return;
+    if (activateSession(updatedSession)) {
+      dispatch({ type: 'LOGIN', session: updatedSession });
+      persistLatestSession().catch(() => {});
+    }
+  }
+
   useEffect(() => subscribeToSessionInvalidation(() => {
     clearExpiryTimer();
     desiredSessionRef.current = null;
@@ -282,7 +299,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

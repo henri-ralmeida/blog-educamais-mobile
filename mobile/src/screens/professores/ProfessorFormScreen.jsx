@@ -10,12 +10,15 @@ import { professoresService } from '../../services/professoresService';
 import { describeRequestError } from '../../utils/requestError';
 import { colors, radii, spacing, typography } from '../../theme/tokens';
 import { emailRule, nomeRule, senhaRules } from '../../utils/validators';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ProfessorFormScreen({ route, navigation }) {
   const id = route.params?.id;
   const isEditMode = id !== undefined && id !== null;
 
   const [submitError, setSubmitError] = useState(null);
+  const { user, login, updateUser } = useAuth();
+  const isSelfEdit = isEditMode && user?.id === id;
 
   const {
     control,
@@ -41,7 +44,18 @@ export default function ProfessorFormScreen({ route, navigation }) {
       ? professoresService.update(id, payload)
       : professoresService.create(payload);
     return request
-      .then(() => {
+      .then(async () => {
+        // Professor editando a própria conta: o backend já salvou. Sem isso, "Olá, ..."
+        // e a sessão local só refletiam a mudança depois de reabrir o app.
+        if (isSelfEdit) {
+          if (payload.senha !== undefined) {
+            // Trocar a própria senha revoga o token atual no backend (tokenVersion).
+            // Relogar na hora evita deslogar quem acabou de trocar a própria senha.
+            await login(payload.email, payload.senha).catch(() => {});
+          } else {
+            updateUser({ nome: payload.nome, email: payload.email });
+          }
+        }
         navigation.goBack();
       })
       .catch((err) => {

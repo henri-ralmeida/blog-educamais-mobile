@@ -86,6 +86,19 @@ export default function CrudListScreen({
     return user?.id !== undefined && String(user.id) === String(item.id);
   }
 
+  // A própria conta sempre no topo da lista, independente da ordenação vinda do
+  // servidor (createdAt desc). Só reordena a página já carregada; o restante
+  // mantém a ordem original entre si.
+  function comContaPropriaNoTopo(lista) {
+    if (!protegerContaPropria) return lista;
+    const indice = lista.findIndex((item) => ehContaPropria(item));
+    if (indice <= 0) return lista;
+    const copia = lista.slice();
+    const [propria] = copia.splice(indice, 1);
+    copia.unshift(propria);
+    return copia;
+  }
+
   async function confirmDelete(item) {
     setActionError(null);
     const confirmed = await confirmDestructiveAction({
@@ -108,16 +121,10 @@ export default function CrudListScreen({
     await reconcileFirstPage();
   }
 
-  async function abrirEdicao(item) {
-    if (protegerContaPropria && ehContaPropria(item)) {
-      const confirmed = await confirmDestructiveAction({
-        title: 'Editar a própria conta',
-        message:
-          'Você está editando a conta com a qual está logado. Se alterar a senha, sua sessão será encerrada e você precisará entrar de novo.',
-        confirmLabel: 'Continuar',
-      });
-      if (!confirmed) return;
-    }
+  // Trocar a própria senha não derruba mais a sessão (ProfessorFormScreen reloga
+  // sozinho depois de salvar), então editar a própria conta não precisa mais
+  // de confirmação prévia — o aviso ficaria descrevendo um risco que não existe.
+  function abrirEdicao(item) {
     navigation.navigate(formRoute, { id: item.id, nome: item.nome, email: item.email });
   }
 
@@ -201,7 +208,7 @@ export default function CrudListScreen({
       <FlatList
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        data={items}
+        data={comContaPropriaNoTopo(items)}
         keyExtractor={(item) => String(item.id)}
         onEndReached={() => loadMore()}
         onEndReachedThreshold={0.5}

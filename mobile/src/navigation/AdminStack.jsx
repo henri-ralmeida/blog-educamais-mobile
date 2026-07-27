@@ -9,6 +9,8 @@ import ProfessorListScreen from '../screens/professores/ProfessorListScreen';
 import ProfessorFormScreen from '../screens/professores/ProfessorFormScreen';
 import AlunoListScreen from '../screens/alunos/AlunoListScreen';
 import AlunoFormScreen from '../screens/alunos/AlunoFormScreen';
+import PostListScreen from '../screens/posts/PostListScreen';
+import PostDetailScreen from '../screens/posts/PostDetailScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { confirmDestructiveAction, notify } from '../utils/dialogs';
 import { colors, radii, spacing, typography } from '../theme/tokens';
@@ -126,6 +128,18 @@ export default function AdminStack() {
         options={({ route }) => ({
           title: route.params?.id !== undefined && route.params?.id !== null ? 'Editar aluno' : 'Novo aluno',
         })}
+      />
+      {/* Reaproveita as telas da área pública dentro do stack administrativo: o professor
+          navega e volta pelo botão padrão do header, sem sair da própria sessão. */}
+      <Stack.Screen
+        name="StudentPreview"
+        component={PostListScreen}
+        options={{ title: 'Visão do aluno' }}
+      />
+      <Stack.Screen
+        name="PostDetail"
+        component={PostDetailScreen}
+        options={{ title: 'Post' }}
       />
     </Stack.Navigator>
   );
