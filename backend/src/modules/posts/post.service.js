@@ -62,17 +62,19 @@ function escapeLikeWildcards(term) {
   return term.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
+// unaccent() dos dois lados: "fotossintese" (sem acento, digitado pelo aluno)
+// precisa achar "fotossíntese" (com acento, no conteúdo real). Prisma não tem
+// função de busca no schema, por isso vai como SQL cru — os valores seguem
+// interpolados com segurança pelo tagged template, sem concatenação de string.
 async function searchPosts(term) {
   const safeTerm = escapeLikeWildcards(term);
-  return prisma.post.findMany({
-    where: {
-      OR: [
-        { title: { contains: safeTerm, mode: "insensitive" } },
-        { content: { contains: safeTerm, mode: "insensitive" } },
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const pattern = `%${safeTerm}%`;
+  return prisma.$queryRaw`
+    SELECT * FROM "Post"
+    WHERE unaccent(title) ILIKE unaccent(${pattern}) ESCAPE '\\'
+       OR unaccent(content) ILIKE unaccent(${pattern}) ESCAPE '\\'
+    ORDER BY "createdAt" DESC
+  `;
 }
 
 module.exports = {
