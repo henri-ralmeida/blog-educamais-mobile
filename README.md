@@ -285,5 +285,5 @@ curl -s http://localhost:3000/posts
 
 ## Licenças presentes
 
-O componente mobile contém [mobile/LICENSE](mobile/LICENSE), com aviso MIT do Expo. O backend declara ISC em [backend/package.json](backend/package.json). Não há arquivo de licença único na raiz; esses registros não foram alterados por esta documentação.
+O projeto está licenciado sob a [Apache License 2.0](LICENSE). O arquivo [mobile/LICENSE](mobile/LICENSE) preserva o aviso MIT do Expo usado como base do aplicativo.
 
