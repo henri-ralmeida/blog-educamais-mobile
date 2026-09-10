@@ -1,14 +1,37 @@
-# Blog EducaMais — App Mobile (Tech Challenge Fase 04)
+# Blog EducaMais
 
-> App React Native (Expo) onde o professor autenticado gerencia posts, professores e alunos; o aluno lê e busca posts sem precisar de login.
+**Conteúdo educacional aberto para leitura, com gestão de posts, professores e alunos.**
+
+React Native · Expo · Express · Prisma · PostgreSQL
+
+Projeto do **Tech Challenge — Fase 04**. Reúne o aplicativo Android/iOS/Web e sua API no mesmo repositório: visitantes consultam conteúdos sem cadastro; professores autenticados administram o blog.
+
+| Quem usa | O que pode fazer |
+| --- | --- |
+| Visitantes e alunos | Listar, buscar e ler posts sem login |
+| Professores autenticados | Criar, editar e excluir posts, professores e alunos |
+
+Os registros de alunos não possuem senha. O login é destinado aos professores.
+
+**Navegação:** [Executar com Docker](#execução-completa-com-docker) · [Primeiro professor](#bootstrap-seguro-do-primeiro-professor) · [App no dispositivo](#setup-do-app-mobile-fora-do-docker) · [Validação](#validação)
+
+## Estrutura e tecnologias
+
+| Diretório | Responsabilidade | Tecnologias |
+| --- | --- | --- |
+| [mobile/](mobile) | Interface pública e administrativa | Expo 57, React 19.2, React Native 0.86, React Navigation |
+| [backend/](backend) | API, autenticação e persistência | Express 5, Prisma 5, PostgreSQL 16, JWT e bcrypt |
+| [docker-compose.yml](docker-compose.yml) | Ambiente local integrado | Banco, API, Expo Web e bootstrap |
+
+O mobile usa Bun e patches versionados em [mobile/patches](mobile/patches); mantenha o gerenciador e o lockfile do projeto.
 
 ---
 
 ## Pré-requisitos
 
-- [Node.js](https://nodejs.org/) (LTS mais recente)
+- **Node.js 22.13 ou superior compatível com o SDK 57**, para desenvolvimento mobile no host, conforme a [matriz do Expo](https://docs.expo.dev/versions/latest/); o backend em Docker usa a imagem Node 20
 - [bun](https://bun.sh/) — gerenciador de pacotes usado pelo projeto (`bun.lock` presente em `mobile/`)
-- [Expo Go](https://expo.dev/go) instalado no celular (Android/iOS), **ou** emulador Android/simulador iOS configurado
+- Expo Go compatível com o SDK Expo 57 instalado no celular (Android/iOS), **ou** emulador Android/simulador iOS configurado
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (ou Docker Engine + Compose v2) — necessário para rodar o backend
 
 ---
@@ -18,23 +41,24 @@
 Banco, backend e versão web do app mobile sobem juntos:
 
 ```bash
-# na raiz deste repositório
+# clone e entre na raiz do repositório
+git clone https://github.com/henri-ralmeida/blog-educamais-mobile.git
+cd blog-educamais-mobile
 cp .env.example .env
 # edite .env e preencha:
 #   POSTGRES_PASSWORD
 #   JWT_SECRET e RATE_LIMIT_SECRET  (32+ caracteres aleatórios, distintos entre si)
 #   INITIAL_TEACHER_NAME, INITIAL_TEACHER_EMAIL, INITIAL_TEACHER_PASSWORD
 #     (usados no bootstrap descrito adiante — preencha agora para não voltar aqui)
-docker compose up --build
+docker compose up --build -d
 ```
+
+No PowerShell, use `Copy-Item .env.example .env` no lugar de `cp`. Para acompanhar a inicialização, execute `docker compose logs -f backend`.
 
 O banco sobe **vazio**: sem posts e sem nenhuma conta. O login só funciona depois
 do bootstrap descrito na próxima seção.
 
-> **Windows:** salve o `.env` com fim de linha **LF**. Com CRLF, cada valor
-> termina em carriage return dentro do container Linux: `CORS_ORIGIN` vira
-> `http://localhost:8081` e toda requisição do app falha sem erro visível.
-> O `.gitattributes` do repositório já força LF nos arquivos versionados.
+> **Windows:** mantenha os arquivos `.env` com fim de linha **LF**, conforme as orientações do projeto. O seed rejeita valores com quebras de linha. O `.gitattributes` padroniza os arquivos versionados.
 
 Serviços disponíveis:
 
@@ -59,13 +83,12 @@ O serviço mobile executa Expo Web. A variável `EXPO_PUBLIC_API_URL` aponta o b
 O cadastro REST de professores continua protegido: somente um professor autenticado pode cadastrar outros professores. Em banco novo, crie o primeiro professor pelo seed administrativo explícito:
 
 ```bash
-# na raiz, com o serviço db ativo. As variáveis vêm do .env:
+# na raiz, após o backend concluir as migrations. As variáveis vêm do .env:
 #   INITIAL_TEACHER_NAME, INITIAL_TEACHER_EMAIL, INITIAL_TEACHER_PASSWORD
 docker compose --profile bootstrap run --rm seed
 ```
 
-Fora do Docker, execute no diretório `backend` com as mesmas variáveis definidas
-no ambiente:
+Fora do Docker, o seed requer dependências instaladas, Prisma Client gerado e migrations aplicadas. Execute no diretório `backend` com `DATABASE_URL` e as três variáveis `INITIAL_TEACHER_*` definidas no ambiente:
 
 ```bash
 npx prisma db seed
@@ -73,7 +96,7 @@ npx prisma db seed
 
 As três variáveis são obrigatórias. O comando falha sem qualquer uma delas. A senha é persistida somente como hash bcrypt. O seed é idempotente: se já houver professor, não cria nem altera contas. Ele não roda no boot do backend nem em `docker compose up`.
 
-Para parar sem apagar dados do UAT:
+Para parar sem apagar os dados:
 
 ```bash
 docker compose down
@@ -94,15 +117,19 @@ Não use `docker compose down -v`: `-v` remove o volume e apaga todos os dados d
 
 ```bash
 # 1. Clonar o repositório
-git clone <URL_DO_REPO>
-cd blogeducamais-techchallenge-04/mobile
+git clone https://github.com/henri-ralmeida/blog-educamais-mobile.git
+cd blog-educamais-mobile/mobile
 
 # 2. Instalar dependências
 bun install
 
-# 3. Configurar variáveis de ambiente
+# 3. Apenas para celular físico: copiar e ajustar o IP LAN
 cp .env.example .env
 ```
+
+Se você já clonou e iniciou a stack na seção Docker, entre em `mobile/` sem clonar novamente. Execute `docker compose stop mobile` na raiz para liberar a porta 8081 antes de iniciar o Expo no host.
+
+**Emulador/simulador:** não copie o `.env.example` sem necessidade. Ele contém um IP de exemplo que substitui os fallbacks automáticos. Se o arquivo já existir, ajuste ou remova `EXPO_PUBLIC_API_URL` para usar o fallback.
 
 ### Configurando o host do backend
 
@@ -174,7 +201,7 @@ src/
 1. `LoginScreen` coleta email/senha e chama `authService.login(email, senha)`, que faz `POST /auth/login` contra o backend.
 2. O backend valida a senha e responde `{ token, professor }`. O token é assinado com HS256 e expira em `JWT_EXPIRES_IN` (padrão: `8h`).
 3. `AuthContext` mantém e persiste `{ token, professor }` em `AsyncStorage`; a senha nunca integra a sessão.
-4. O interceptor de `client.js` injeta `Authorization: Bearer <token>` nas requisições autenticadas.
+4. O interceptor de `client.js` injeta `Authorization: Bearer [REDACTED:Authorization header] nas requisições autenticadas.
 5. Uma resposta `401` invalida a sessão via pub/sub do `sessionStore`; `AuthContext` limpa a persistência e a UI volta imediatamente à stack pública.
 
 ---
@@ -193,7 +220,7 @@ src/
 
 ## Segurança da sessão
 
-- Rotas administrativas exigem `Authorization: Bearer <token>`; `x-user-type` não é aceito como fallback.
+- Rotas administrativas exigem `Authorization: Bearer [REDACTED:Authorization header] `x-user-type` não é aceito como fallback.
 - O backend verifica assinatura, expiração, papel `teacher` e restringe o algoritmo a HS256.
 - `JWT_SECRET` é obrigatório no boot e precisa ter pelo menos 32 caracteres. `JWT_EXPIRES_IN` usa `8h` por padrão.
 - `CORS_ORIGIN` é obrigatório. Produção aceita somente as origens exatas configuradas e nunca wildcard. Desenvolvimento também permite `localhost:5173`, `localhost:8081` e URLs `exp://` em loopback/LAN.
@@ -205,8 +232,10 @@ src/
 
 ## Validação
 
-O projeto não possui suíte de testes automatizados — o desafio não os exige.
+O projeto não possui suíte de testes automatizados versionada.
 A validação é funcional, contra o ambiente real:
+
+Os exemplos cURL abaixo usam Bash; no Windows, execute-os no Git Bash. São verificações para executar no seu ambiente, não resultados de uma execução automática.
 
 ```bash
 # backend de pé e respondendo
@@ -237,9 +266,24 @@ TOKEN=$(curl -s -X POST http://localhost:3000/auth/login \
 
 # criar um post (deve responder 201; o autor vem do token, não do corpo)
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:3000/posts \
-  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer [REDACTED:Authorization header] \
   -d '{"title":"Aula inaugural","content":"Primeiro post do ambiente."}'
 
 # o post recém-criado já aparece na leitura pública
 curl -s http://localhost:3000/posts
 ```
+
+## Problemas comuns
+
+| Sintoma | O que conferir |
+| --- | --- |
+| Login falha em banco novo | Aguarde as migrations do backend e execute o bootstrap do primeiro professor |
+| Celular não alcança a API | IP LAN em `mobile/.env`, mesma rede Wi-Fi e acesso à porta 3000 |
+| Emulador usa IP incorreto | Remova o IP de exemplo do `.env` ou ajuste para o host correto |
+| Web bloqueada por CORS | Origem exata em `CORS_ORIGIN` e reconstrução/recriação do backend após alterações |
+| Porta 8081 ocupada | Pare o serviço `mobile` do Compose antes de iniciar o Expo no host |
+
+## Licenças presentes
+
+O componente mobile contém [mobile/LICENSE](mobile/LICENSE), com aviso MIT do Expo. O backend declara ISC em [backend/package.json](backend/package.json). Não há arquivo de licença único na raiz; esses registros não foram alterados por esta documentação.
+
